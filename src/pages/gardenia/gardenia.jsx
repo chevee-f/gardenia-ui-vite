@@ -9,7 +9,7 @@ import TicketsTodayCard from "../../components/stats/total";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import FilePreviewModal from "../../components/modal/file-preview";
-import { API_URL } from '../../../shared/constants';
+import { API_URL } from '../../shared/constants';
 
 function Gardenia() {
 
