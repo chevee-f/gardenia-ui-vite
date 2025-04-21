@@ -9,6 +9,7 @@ import TicketsTodayCard from "../../components/stats/total";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import FilePreviewModal from "../../components/modal/file-preview";
+import { API_URL } from '../../../shared/constants';
 
 function Gardenia() {
 
@@ -51,7 +52,7 @@ function Gardenia() {
   useEffect(() => {
     getVSM();
   }, []);
-  const API_URL = "http://127.0.0.1:5000";
+  // const API_URL = "http://127.0.0.1:5000";
   const getDscList = async () => {
     try {
       const req = await fetch(`${API_URL}/get-dsc`);

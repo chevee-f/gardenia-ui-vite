@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { API_URL } from '../../../shared/constants';
 
 const GardeniaAdd = ({ isOpen, onClose, onSave }) => {
     
-    const API_URL = "http://127.0.0.1:5000";
+    // const API_URL = "http://127.0.0.1:5000";
     const [vsmList, setVsmList] = useState([]);
     const [formData, setFormData] = useState({
         dsc_no: "",
