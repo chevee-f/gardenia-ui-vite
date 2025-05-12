@@ -22,6 +22,7 @@ const AddTicketPage = () => {
     const [progress, setProgress] = useState(0);
     const [showProgressBar, setShowProgressBar] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [mainFileName, setMainFileName] = useState('Choose a file');
 
     useEffect(() => {
         getVSM();
@@ -130,6 +131,7 @@ const AddTicketPage = () => {
 
     const handleMainFile = (e) => {
         const file = e.target.files[0];
+        setMainFileName(file.name);
         setForm({ ...form, dsc_file: file });
         setFilePreview(URL.createObjectURL(file));
     };
@@ -266,6 +268,19 @@ const AddTicketPage = () => {
                         <h2 className="text-lg font-semibold">DSC Files</h2>
 
                         {/* Main DSC File */}
+                        <div class="w-full">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Main DSC File</label>
+                            <label
+                                for="main-dsc-file"
+                                class="flex items-center justify-center w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-white text-sm text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+                            >
+                                {mainFileName}
+                                <input id="main-dsc-file" type="file" class="hidden"
+                                onChange={handleMainFile} />
+                            </label>
+                        </div>
+
+                        {/*
                         <div>
                             <label className="block text-sm font-medium">Main DSC File</label>
                             <input
@@ -274,33 +289,45 @@ const AddTicketPage = () => {
                                 className="w-full mt-1"
                             />
                         </div>
+                        */}
 
                         {/* Sub DSC Files */}
                         <div>
-                            <label className="block text-sm font-medium">Sub DSC Files</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Sub DSC Files</label>
+
                             {form.sub_dsc_files.map((file, index) => (
                                 <div
-                                    key={index}
-                                    className="flex items-center justify-between bg-gray-100 p-2 rounded mt-2"
+                                key={index}
+                                className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded-md mb-2"
                                 >
-                                    <span
-                                        onClick={() => setFilePreview(URL.createObjectURL(file))}
-                                        className="cursor-pointer hover:underline text-sm"
-                                    >
-                                        {file.name}
-                                    </span>
-                                    <button
-                                        onClick={() => removeSubFile(index)}
-                                        className="text-red-500 text-sm"
-                                    >
-                                        ✕
-                                    </button>
+                                <span
+                                    onClick={() => setFilePreview(URL.createObjectURL(file))}
+                                    className="cursor-pointer hover:underline text-sm text-blue-600 truncate max-w-[85%]"
+                                    title={file.name}
+                                >
+                                    {file.name}
+                                </span>
+                                <button
+                                    onClick={() => removeSubFile(index)}
+                                    className="text-red-500 hover:text-red-700 text-sm font-bold"
+                                    aria-label="Remove file"
+                                >
+                                    ✕
+                                </button>
                                 </div>
                             ))}
+
+                            <label
+                                htmlFor="sub-dsc-files"
+                                className="mt-2 inline-block cursor-pointer px-4 py-2 text-sm bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+                            >
+                                Add Sub File
+                            </label>
                             <input
+                                id="sub-dsc-files"
                                 type="file"
                                 onChange={handleAddSubFile}
-                                className="mt-2"
+                                className="hidden"
                             />
                         </div>
                     </div>

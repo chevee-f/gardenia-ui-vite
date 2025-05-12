@@ -14,9 +14,22 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
 
   useEffect(() => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
-    renderPDF(fileData);
+    renderFile(fileData);
   }, []);
 
+  const renderFile = (file) => {
+    const fileType = file.type.split('/')[0]; // Extract file type (image or application)
+
+    if (fileType === 'application' && file.type === 'application/pdf') {
+        // Handle PDF rendering
+        renderPDF(file);
+    } else if (fileType === 'image') {
+        // Handle image rendering
+        renderImage(file);
+    } else {
+        console.error('Unsupported file type:', file.type);
+    }
+  };
   const renderPDF = (pdfFile) => {
     const reader = new FileReader();
 
@@ -63,6 +76,32 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
     reader.readAsArrayBuffer(pdfFile);
 };
 
+const renderImage = (imageFile) => {
+  const reader = new FileReader();
+
+  reader.onload = (event) => {
+      const imageData = event.target.result;
+      const image = new Image();
+      image.src = imageData;
+
+      image.onload = () => {
+          const container = containerRef.current;
+          const imageWidth = image.width;
+          const imageHeight = image.height;
+
+          if (container) {
+              container.style.width = `${imageWidth}px`;
+              container.style.height = `${imageHeight}px`;
+          }
+
+          // Append image to the container
+          container.innerHTML = ''; // Clear previous content if necessary
+          container.appendChild(image);
+      };
+  };
+
+  reader.readAsDataURL(imageFile);
+};
   const onLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
