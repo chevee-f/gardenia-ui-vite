@@ -55,59 +55,50 @@ const AddTicketPage = () => {
     // };
 
     const handleSave = async () => {
-        console.log(form);
-        console.log(existingTicket);
-        // const { sub_dsc_files, dsc_file, ...cleaned } = form;
-        // form.pop();
-        // form.pop();
         const formData = new FormData();
         formData.append("dsc_no", form.dsc_no);
         formData.append("vsm", form.vsm);
         formData.append("area", form.area);
-
+        formData.append("dsc_date", form.dsc_date);
+      
+        // Only append new main file if it's a File object
         if (form.dsc_file instanceof File) {
-            formData.append("dsc_file", form.dsc_file); // main DSC file
+          formData.append("dsc_file", form.dsc_file);
         }
-
+      
+        // Only send new sub_dsc_files (File objects)
         form.sub_dsc_files.forEach((file) => {
-            formData.append("sub_dsc_files", file); // multiple files (same key)
+          if (file instanceof File) {
+            formData.append("sub_dsc_files", file);
+          }
         });
-        // return;
+      
         setIsSaving(true);
-        // progressStatus(false);
         try {
           const endpoint = existingTicket
             ? `${API_URL}/update-dsc?id=${existingTicket.id}`
             : `${API_URL}/save-dsc`;
-    
+      
           const res = await fetch(endpoint, {
             method: "POST",
             body: formData,
-            // headers: {
-            //   "Content-Type": "application/json",
-            // },
-            // body: JSON.stringify(form),
           });
-    
+      
           const result = await res.json();
-    
           setIsSaving(false);
+      
           if (res.ok) {
-            console.log("Success:", result.message);
             alert("Ticket saved!");
             navigate("/gardenia");
-            
-            // progressStatus(true);
           } else {
-            console.error("Error:", result.error || result.message);
             alert(result.error || result.message);
           }
         } catch (error) {
-            setIsSaving(false);
-          console.error("Request failed:", error);
+          setIsSaving(false);
           alert("An error occurred.");
+          console.error(error);
         }
-      };
+      };          
 
     const handleClear = () => {
         // your clear logic

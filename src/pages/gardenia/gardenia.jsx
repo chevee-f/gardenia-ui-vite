@@ -69,6 +69,7 @@ function Gardenia() {
         const req = await fetch(`${API_URL}/get-vsm`);
         const res = await req.json();
         setVsmList(res.data);
+        console.log(res.data);
         getAREA();
     } catch (e) {
         console.error(e)
@@ -242,7 +243,7 @@ const getAREA = async () => {
   
       // Set the PDF data state for react-pdf
       // setFilePreviewData(uint8Array);
-      setFilePreviewData(file);
+      setFilePreviewData(blob);
       setFilePreviewName(fileName);
       setShowFileModal(true);
     } catch (error) {
@@ -333,10 +334,11 @@ const getAREA = async () => {
                 </tr>
               ) : (tickets
                 .filter((ticket) => {
+                  // console.log(ticket);
                   const query = searchQuery.toLowerCase();
                   return (
                     ticket.dsc_no.toLowerCase().includes(query) ||
-                    ticket.dsc_date.toLowerCase().includes(query) ||
+                    ticket.dsc_date?.toLowerCase().includes(query) ||
                     ticket.dsc_vsm?.toLowerCase().includes(query) ||
                     ticket.dsc_area?.toLowerCase().includes(query) ||
                     ticket.status.toLowerCase().includes(query)
@@ -351,8 +353,8 @@ const getAREA = async () => {
                   >
                     <td className="px-4 py-2">{ticket.dsc_no}</td>
                     <td className="px-4 py-2">{ticket.dsc_date}</td>
-                    <td className="px-4 py-2">{vsmList.find(vsm => vsm.id === ticket.dsc_vsm)?.name || ''}</td>
-                    <td className="px-4 py-2">{areaList.find(area => area.id === ticket.dsc_area)?.name || ''}</td>
+                    <td className="px-4 py-2">{vsmList.find(vsm => vsm.id.toString() === ticket.dsc_vsm)?.name || ''}</td>
+                    <td className="px-4 py-2">{areaList.find(area => area.id.toString() === ticket.dsc_area)?.name || ''}</td>
                     <td className="px-4 py-2">
                     <span
                         className={`px-2 py-1 text-sm font-medium rounded-full
