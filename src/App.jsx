@@ -6,6 +6,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/sidebar/sidebar'
 import Gardenia from './pages/gardenia/gardenia';
 import AddTicketPage from './pages/gardenia/add/gardenia-new';
+import SpareParts from './pages/spare-parts/SpareParts';
 
 function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -64,6 +65,7 @@ function App() {
               </Route>
               
               <Route path='/gardenia/new' element={<AddTicketPage />} />
+              <Route path='/spare-parts' element={<SpareParts />} />
               {/* other routes */}
             </Routes>
           </main>
