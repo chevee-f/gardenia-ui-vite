@@ -69,6 +69,7 @@ function Gardenia() {
         const req = await fetch(`${API_URL}/get-vsm`);
         const res = await req.json();
         setVsmList(res.data);
+        console.log(res.data);
         getAREA();
     } catch (e) {
         console.error(e)
@@ -215,26 +216,34 @@ const getAREA = async () => {
   const [filePreviewName, setFilePreviewName] = useState('');
 
   const openFileModal = async (type, fileName) => {
+    let table = type === 'Main' ? 'dsc' : 'sub_dsc_files';
+
     try {
       const res = await fetch(`${API_URL}/get-file`, {
         method: 'POST',
-        body: JSON.stringify({ fileName }),
+        body: JSON.stringify({ fileName, table }),
         headers: {
           'Content-Type': 'application/json',
         },
       });
   
-      const fileData = await res.blob(); // Get the file as a Blob (binary data)
+      // const fileData = await res.blob(); // Get the file as a Blob (binary data)
   
       // Convert the Blob to a Uint8Array (ArrayBuffer)
-      const arrayBuffer = await fileData.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
+      // const arrayBuffer = await fileData.arrayBuffer();
+      // const uint8Array = new Uint8Array(arrayBuffer);
       
-      const file = new File([fileData], "loaded.pdf", { type: "application/pdf" });
+      const blob = await res.blob(); // Get the file as a Blob
+      const mimeType = blob.type;    // ✅ Get MIME type returned by server
+
+      const fileExtension = mimeType.split('/')[1] || 'bin';  // e.g. 'pdf' or 'png'
+      console.log(mimeType + ' ' + fileExtension);
+      const file = new File([blob], `loaded.${fileExtension}`, { type: mimeType });
+      // const file = new File([fileData], "loaded.pdf", { type: "application/pdf" });
   
       // Set the PDF data state for react-pdf
       // setFilePreviewData(uint8Array);
-      setFilePreviewData(file);
+      setFilePreviewData(blob);
       setFilePreviewName(fileName);
       setShowFileModal(true);
     } catch (error) {
@@ -325,10 +334,11 @@ const getAREA = async () => {
                 </tr>
               ) : (tickets
                 .filter((ticket) => {
+                  // console.log(ticket);
                   const query = searchQuery.toLowerCase();
                   return (
                     ticket.dsc_no.toLowerCase().includes(query) ||
-                    ticket.dsc_date.toLowerCase().includes(query) ||
+                    ticket.dsc_date?.toLowerCase().includes(query) ||
                     ticket.dsc_vsm?.toLowerCase().includes(query) ||
                     ticket.dsc_area?.toLowerCase().includes(query) ||
                     ticket.status.toLowerCase().includes(query)
@@ -343,8 +353,8 @@ const getAREA = async () => {
                   >
                     <td className="px-4 py-2">{ticket.dsc_no}</td>
                     <td className="px-4 py-2">{ticket.dsc_date}</td>
-                    <td className="px-4 py-2">{vsmList.find(vsm => vsm.id === ticket.dsc_vsm)?.name || ''}</td>
-                    <td className="px-4 py-2">{areaList.find(area => area.id === ticket.dsc_area)?.name || ''}</td>
+                    <td className="px-4 py-2">{vsmList.find(vsm => vsm.id.toString() === ticket.dsc_vsm)?.name || ''}</td>
+                    <td className="px-4 py-2">{areaList.find(area => area.id.toString() === ticket.dsc_area)?.name || ''}</td>
                     <td className="px-4 py-2">
                     <span
                         className={`px-2 py-1 text-sm font-medium rounded-full
@@ -434,7 +444,7 @@ const getAREA = async () => {
                 <h3 className="text-sm font-medium text-gray-600 mb-1">Main DSC File</h3>
                 {sidebarTicket.file_name ? (
                   <button
-                    onClick={() => openFileModal('Main DSC File', sidebarTicket.file_name)}
+                    onClick={() => openFileModal('Main', sidebarTicket.file_name)}
                     className="text-blue-600 underline"
                   >
                     {sidebarTicket.file_name || "View File"}
@@ -453,7 +463,7 @@ const getAREA = async () => {
                         onClick={() => openFileModal(`Sub File ${idx + 1}`, subFile)}
                         className="text-blue-600 underline"
                       >
-                        {subFile.name || `Sub File ${idx + 1}`}
+                        {subFile.name || `${subFile.length > 25 ? subFile.substring(0, 25) + "..." : subFile}`}
                       </button>
                     </li>
                   ))}

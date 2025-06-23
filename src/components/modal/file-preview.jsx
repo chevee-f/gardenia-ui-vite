@@ -14,10 +14,25 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
 
   useEffect(() => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
-    renderPDF(fileData);
+    renderFile(fileData);
   }, []);
 
-  const renderPDF = (pdfFile) => {
+  const renderFile = (file) => {
+    const mimeType = file.type || 'application/octet-stream';
+    const fileType = mimeType.split('/')[0];
+
+    console.log('MIME Type:', mimeType);
+
+    if (mimeType === 'application/pdf') {
+        renderPDF(file);
+    } else if (fileType === 'image') {
+        renderImage(file);
+    } else {
+        console.error('Unsupported file type:', mimeType);
+    }
+  };
+
+  const renderPDF = (pdfBlob) => {
     const reader = new FileReader();
 
     reader.onload = (event) => {
@@ -30,21 +45,17 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
                 const container = containerRef.current;
                 const dpi = 300;
                 const scale = dpi / 72;
-                const pageWidth = page.getViewport({ scale: 1 }).width;
-                const containerWidth = window.innerWidth * 0.5;
-                // const scale = (dpi / 72) * (containerWidth / pageWidth);
                 const viewport = page.getViewport({ scale });
-                console.log(page)
+
                 const canvas = canvasRef.current;
                 const context = canvas.getContext('2d');
 
-                // const dpr = window.devicePixelRatio || 1;
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                if(container) {
-                    container.style.width = `${containerWidth.width}px`;
-                    container.style.height = `${containerWidth.height}px`;
+                if (container) {
+                    container.style.width = `${viewport.width}px`;
+                    container.style.height = `${viewport.height}px`;
                 }
 
                 page.render({
@@ -53,15 +64,33 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
                 }).promise.then(() => {
                     console.log('Page rendered');
                 });
-
-                
-                // if(container) setPageTitle(title.addDsc)
             });
         });
     };
 
-    reader.readAsArrayBuffer(pdfFile);
-};
+    reader.readAsArrayBuffer(pdfBlob);
+  };
+
+
+  const renderImage = (imageBlob) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+        const image = new Image();
+        image.src = event.target.result;
+
+        image.onload = () => {
+            const container = containerRef.current;
+            container.innerHTML = '';
+
+            container.style.width = `${image.width}px`;
+            container.style.height = `${image.height}px`;
+            container.appendChild(image);
+        };
+    };
+
+    reader.readAsDataURL(imageBlob);
+  };
 
   const onLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -119,7 +148,9 @@ const FilePreviewModal = ({ fileName, fileData, onClose }) => {
         <h3 className="text-lg font-medium mb-4">File Preview</h3>
         <div className="max-h-[80vh] overflow-auto">
           {/* {renderFilePreview()} */}
-          <canvas ref={canvasRef} style={{ width: '100%', backgroundColor: 'blue' }} />
+          <div ref={containerRef}>
+            <canvas ref={canvasRef} style={{ width: '100%', backgroundColor: 'blue' }} />
+          </div>
         </div>
         <button
           onClick={onClose}
