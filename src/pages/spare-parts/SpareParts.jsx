@@ -4,6 +4,42 @@ import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 
+// === CONSTANTS ===
+const COPY_LABELS = {
+  ttc: 'TTC COPY',
+  customer: "CUSTOMER COPY",
+  carrier: 'CARRIER COPY',
+};
+const EMAILS = [
+  'ervycustomsbrokerage@yahoo.com.ph cavimerto@gmail.com',
+  'aileenmatub2015@gmail.com',
+  'mjervytrucking@yahoo.com',
+  'rachelervytrucking08@gmail.com',
+];
+const CONTACT_NUMBERS = '09274288126/09458261900/09156153298';
+const SHIPPER_NAME = 'TRIMOTORS TECHNOLOGY CORP.';
+const PRINT_OPTIONS = [
+  { key: 'ttc', label: COPY_LABELS.ttc },
+  { key: 'customer', label: COPY_LABELS.customer },
+  { key: 'carrier', label: COPY_LABELS.carrier },
+];
+const HOUSEWAY_BILL_PLACEHOLDER = '000-0000';
+const HOUSEWAY_BILL_FORMAT_ERROR = 'Format must be 000-0000';
+const REMARKS = 'WARRANT THAT ALL DETAILS GIVEN ARE TRUE AND CORRECT';
+const RECEIVED_BY = "RECEIVED BY:";
+const CONSIGNEE_PRINTED = "CONSIGNEE PRINTED NAME AND SIGNATURE/DATE";
+const SHIPPER_PRINTED = "SHIPPER'S PRINTED NAME AND SIGNATURE/DATE";
+const AUTHORIZED_REPRESENTATIVE = 'AUTHORIZED REPRESENTATIVE';
+const ERVY_LOGISTICS = 'ERVY LOGISTICS';
+const DOCUMENT_NUMBER = 'DOCUMENT NUMBER';
+const NUMBER_TYPE_PACKAGE = 'NUMBER AND TYPE OF PACKAGE';
+const TRUCK_PLATE_NO = 'TRUCK PLATE NO.';
+const DECLARED_VALUE = 'DECLARED VALUE:';
+const CONSIGNEE_NAME = 'CONSIGNEE NAME:';
+const CONSIGNEE_CONTACT = 'CONSIGNEE CONTACT INFORMATION';
+const CONSIGNEE_ADDRESS = 'CONSIGNEE ADDRESS:';
+const HOUSEWAY_BILL_NO = 'HOUSEWAY BILL NO:';
+
 function SpareParts() {
   const [jsonData, setJsonData] = useState(null);
   const [colWidths, setColWidths] = useState([]);
@@ -18,6 +54,7 @@ function SpareParts() {
   const [globalHousewayBill, setGlobalHousewayBill] = useState('');
   const [editingGlobalHousewayBill, setEditingGlobalHousewayBill] = useState(false);
   const [tempGlobalHousewayBill, setTempGlobalHousewayBill] = useState('');
+  const [printChecks, setPrintChecks] = useState({ ttc: false, customer: false, carrier: false });
 
   // When selectedRef changes, open the accordion by default
   useEffect(() => {
@@ -150,18 +187,19 @@ function SpareParts() {
     const content = document.getElementById(`viewer-content-${idx}`);
     const getPrintHtml = (label) => {
       return `
-        <div style='margin-bottom:16px;text-align:center;'>
-          <span style='font-size:2rem;font-weight:bold;letter-spacing:2px;'>${label}</span>
+        <div style='position: relative; border: 1px solid; padding-bottom: 20px;'>
+          ${content.innerHTML}
+          <div style='position: absolute;right: 200px;font-size: 14px;font-weight: bold;'>
+            <span style=''>${label}</span>
+          </div>
         </div>
-        ${content.innerHTML}
       `;
     };
-    const printWindow = window.open('', '', 'width=900,height=700');
-    // const printStyle = `<style>@page { size: legal; }</style>`;
+    const printWindow = window.open('', '', 'width=850,height=700');
     const printStyle = `
     ${cloneHeadStyles()}
     <style>
-      @page { size: legal; margin: 20mm; }
+      @page { size: legal; }
       @media print {
         .no-print { display: none; }
       }
@@ -170,9 +208,9 @@ function SpareParts() {
     let printHtml = '';
     if (type === 'all') {
       printHtml += getPrintHtml('TTC COPY');
-      printHtml += `<hr style='margin:24px 0;'/>`;
+      printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
       printHtml += getPrintHtml("CUSTOMER COPY");
-      printHtml += `<hr style='margin:24px 0;'/>`;
+      printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
       printHtml += getPrintHtml('CARRIER COPY');
     } else {
       let label = '';
@@ -184,6 +222,58 @@ function SpareParts() {
     printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
     printWindow.document.close();
     printWindow.print();
+  };
+
+  // New: Print only selected types in one popup
+  const handlePrintCustom = (idx, typesArr) => {
+    const content = document.getElementById(`viewer-content-${idx}`);
+    const getPrintHtml = (label) => {
+      return `
+        <div style='position: relative; border: 1px solid; padding-bottom: 20px'>
+          ${content.innerHTML}
+          <div style='position: absolute;right: 200px;font-size: 14px;font-weight: bold;'>
+            <span style=''>${label}</span>
+          </div>
+        </div>
+      `;
+    };
+    const printWindow = window.open('', '', 'width=850,height=700');
+    const printStyle = `
+    ${cloneHeadStyles()}
+    <style>
+      @page { size: legal;}
+      @media print {
+        .no-print { display: none; }
+      }
+    </style>
+  `;
+    let printHtml = '';
+    typesArr.forEach((type, i) => {
+      let label = '';
+      if (type === 'ttc') label = 'TTC COPY';
+      if (type === 'customer') label = "CUSTOMER COPY";
+      if (type === 'carrier') label = 'CARRIER COPY';
+      if (i > 0) printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
+      printHtml += getPrintHtml(label);
+    });
+    printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  // Helper for print logic
+  const handlePrintSelected = (idx) => {
+    const typesArr = [];
+    if (printChecks.ttc) typesArr.push('ttc');
+    if (printChecks.customer) typesArr.push('customer');
+    if (printChecks.carrier) typesArr.push('carrier');
+    if (typesArr.length > 0) {
+      handlePrintCustom(idx, typesArr);
+    }
+  };
+
+  const handlePrintAllBox = (idx) => {
+    handlePrintViewer(idx, 'all');
   };
 
   return (
@@ -349,11 +439,21 @@ function SpareParts() {
                   </div>
                   <button className="text-gray-500 hover:text-gray-700 text-3xl" onClick={() => setModalOpen(false)}>&times;</button>
                 </div>
-                <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-1 overflow-hidden relative">
+                  <div className="w-1/5 absolute top-0">
+                    <button
+                      className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded shadow"
+                      onClick={() => setShowLeftPanel((v) => !v)}
+                    >
+                      {showLeftPanel ? 'Hide List' : 'Show List'}
+                    </button>
+                  </div>
                   {/* Left panel: REF NO. list */}
                   {showLeftPanel && (
                     <div className="w-1/5 border-r overflow-y-auto p-3 transition-all duration-300">
-                      <h3 className="text-lg font-medium mb-4">REF NO. List</h3>
+                      <div className="relative">
+                        <h3 className="text-lg font-medium mb-4">REF NO. List</h3>
+                      </div>
                       <ul>
                         {jsonData
                           .filter(row => row['REF NO.'] && row['REF NO.'].trim() !== '')
@@ -372,14 +472,6 @@ function SpareParts() {
                   )}
                   {/* Right panel: details */}
                   <div className="flex-1 p-8 overflow-y-auto">
-                    <div className="flex justify-end mb-4">
-                      <button
-                        className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded shadow"
-                        onClick={() => setShowLeftPanel((v) => !v)}
-                      >
-                        {showLeftPanel ? 'Hide List' : 'Show List'}
-                      </button>
-                    </div>
                     {selectedRef !== null && jsonData[selectedRef] ? (
                       <div className="space-y-4">
                         <h3 className="text-xl font-semibold mb-6">
@@ -389,7 +481,160 @@ function SpareParts() {
                             <span className="text-green-600 font-semibold ml-2 mt-4">Reviewed</span>
                           )}
                         </h3>
-                        {/* Accordion for details table */}
+                        <div className='flex'>
+                          <div className='mr-6'>
+                            <div className="houseway-bill-no-field mb-4">
+                              <label className="block font-medium mb-1">Houseway Bill No:</label>
+                              <input
+                                type="text"
+                                className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="000-0000"
+                                value={getHousewayBill(selectedRef)}
+                                onChange={e => handleHousewayBillChange(selectedRef, e.target.value)}
+                                maxLength={8}
+                              />
+                              {getHousewayBill(selectedRef) && !/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedRef)) && (
+                                <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
+                              )}
+                            </div>
+                            <div className="flex gap-4 mt-4 flex-wrap">
+                              <button
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                onClick={() => handleConfirmReview(selectedRef)}
+                                disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedRef) || '')}
+                              >
+                                Mark as Reviewed
+                              </button>
+                            </div>
+                          </div>
+                          {/* Print options box */}
+                          <div className="border border-gray-300 rounded p-4 mb-2 w-full max-w-xs" style={{padding:10}}>
+                            <div className="mb-3 font-semibold">Print Options</div>
+                            <div className="flex flex-col gap-2 mb-4">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={printChecks.ttc}
+                                  onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
+                                />
+                                TTC Copy
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={printChecks.customer}
+                                  onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
+                                />
+                                Customer's Copy
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={printChecks.carrier}
+                                  onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
+                                />
+                                Carrier Copy
+                              </label>
+                            </div>
+                            <div className="flex gap-3 mt-2">
+                              <button
+                                className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                onClick={() => handlePrintSelected(selectedRef)}
+                                disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
+                              >
+                                Print
+                              </button>
+                              <button
+                                className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
+                                onClick={() => handlePrintAllBox(selectedRef)}
+                              >
+                                Print All
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold" id={`viewer-content-${selectedRef}`}>
+                          <div className='font-bold text-[12px]'>
+                            <div className='viewer-header flex'>
+                              <div className='viewer-header-left'>
+                                <div className='absolute top-0 left-0'>
+                                  <img src='src/assets/waybill-logo.png' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
+                                </div>
+                                <div className='flex mt-[85px]'>
+                                  <div className='ml-1 w-[84px]'>Email address:</div>
+                                  <div className='ml-[40px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
+                                </div>
+                                <div className='flex'>
+                                  <div className='ml-1'>Contact Number:</div>
+                                  <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
+                                </div>
+                              </div>
+                              <div className='viewer-header-right ml-[40px] mt-[20px]'>
+                                <div className='flex font-serif items-center'>
+                                  <div>
+                                    {HOUSEWAY_BILL_NO}
+                                  </div>
+                                  <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedRef)}</div></div>
+                                <div className="mt-[33px]">
+                                  <div className='underline text-red-500'>{EMAILS[1]}</div>
+                                  <div className='underline text-red-500'>{EMAILS[2]}</div>
+                                  <div className='underline text-red-500'>{EMAILS[3]}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className='viewer-top-body flex mt-6'>
+                              <div className='viewer-top-body-left w-[445px]'>
+                                <div className='flex'>
+                                  <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
+                                  <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
+                                </div>
+                                <div className='flex mt-5'>
+                                  <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
+                                  <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>{jsonData[selectedRef]['DECLARED AMOUNT']}</span></div>
+                                </div>
+                              </div>
+                              <div className='viewer-top-body-right'>
+                                <div className='flex'>
+                                  <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
+                                  <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{jsonData[selectedRef]['NAME OF DEALER']}</div>
+                                </div>
+                                <div className='flex'>
+                                  <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
+                                  <div></div>
+                                </div>
+                                <div className='flex'>
+                                  <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
+                                  <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{jsonData[selectedRef]['ADDRESS']}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className='viewer-bot-body flex justify-between'>
+                              <div className='viewer-bot-body-left flex-1'>
+                                <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
+                                <div style={{backgroundColor: '#fbe4d5'}} className='pt-[15px] pb-[15px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>{jsonData[selectedRef]['REF NO.']}</div>
+                                <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
+                                <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
+                                <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
+                                <div className='border-r-1 pb-5 border-b-1'>{RECEIVED_BY}</div>
+                                <div className='border-r-1 ml-8'>{CONSIGNEE_PRINTED}</div>
+                              </div>
+                              <div className='viewer-bot-body-right flex-1'>
+                                <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>{NUMBER_TYPE_PACKAGE}</div>
+                                <div className='pt-[15px] pb-[15px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
+                                  {jsonData[selectedRef]['No. Of Boxes']} {parseInt(jsonData[selectedRef]['No. Of Boxes'], 10) === 1 ? 'BOX' : 'BOXES'}
+                                </div>
+                                <div className='pt-[40px] pl-1'>{ERVY_LOGISTICS}</div>
+                                <div className='pb-[18px] pl-1'>{AUTHORIZED_REPRESENTATIVE}</div>
+                                <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
+                                <div className='flex pl-1'>{TRUCK_PLATE_NO} <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
+                              </div>
+                            </div>
+                            
+                            <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5'}}>
+                              This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
+                              </div>
+                          </div>
+                        </div>{/* Accordion for details table */}
                         <div className="mt-4">
                           <button
                             className="w-full flex items-center justify-between px-4 py-3 bg-gray-200 hover:bg-gray-300 rounded-t-lg focus:outline-none"
@@ -411,138 +656,6 @@ function SpareParts() {
                               </tbody>
                             </table>
                           )}
-                        </div>
-                        <div>
-                          <div className="houseway-bill-no-field mb-4">
-                            <label className="block font-medium mb-1">Houseway Bill No:</label>
-                            <input
-                              type="text"
-                              className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="000-0000"
-                              value={getHousewayBill(selectedRef)}
-                              onChange={e => handleHousewayBillChange(selectedRef, e.target.value)}
-                              maxLength={8}
-                            />
-                            {getHousewayBill(selectedRef) && !/^\d{3}-\d{4}$/.test(getHousewayBill(selectedRef)) && (
-                              <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
-                            )}
-                          </div>
-                          <div className="flex gap-4 mt-4 flex-wrap">
-                            <button
-                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                              onClick={() => handleConfirmReview(selectedRef)}
-                              disabled={!/^\d{3}-\d{4}$/.test(getHousewayBill(selectedRef) || '')}
-                            >
-                              Mark as Reviewed
-                            </button>
-                            <button
-                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                              onClick={() => handlePrintViewer(selectedRef, 'ttc')}
-                            >
-                              Print TTC Copy
-                            </button>
-                            <button
-                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                              onClick={() => handlePrintViewer(selectedRef, 'customer')}
-                            >
-                              Print Customer's Copy
-                            </button>
-                            <button
-                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                              onClick={() => handlePrintViewer(selectedRef, 'carrier')}
-                            >
-                              Print Carrier Copy
-                            </button>
-                            <button
-                              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                              onClick={() => handlePrintViewer(selectedRef, 'all')}
-                            >
-                              Print All
-                            </button>
-                          </div>
-                        </div>
-                        <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold" id={`viewer-content-${selectedRef}`}>
-                          <div>
-                            <div className='viewer-header flex'>
-                              <div className='viewer-header-left w-[720px]'>
-                                <div className='absolute top-0 left-0'>
-                                  <img src='/assets/waybill-logo.png' alt='Waybill Logo' className='h-[101px] mt-[25px] ml-[25px] w-auto' />
-                                </div>
-                                <div className='flex mt-[99px]'>
-                                  <div className='ml-1'>Email address:</div>
-                                  <div className='ml-[60px] text-red-500'>ervycustomsbrokerage@yahoo.com.ph cavimerto@gmail.com</div>
-                                </div>
-                                <div className='flex'>
-                                  <div className='ml-1'>Contact Number:</div>
-                                  <div className='ml-[40px] text-red-500'>09274288126/09458261900/09156153298</div>
-                                </div>
-                              </div>
-                              <div className='viewer-header-right'>
-                                <div className='flex font-serif text-[15px] pt-6 pb-6 pl-12 pr-12 flex items-center'>HOUSEWAY BILL NO: <div className='font-sans text-[18px] bg-[#fbe4d5] pt-3 pb-3 pl-17 pr-17 flex justify-center items-center'>{getHousewayBill(selectedRef)}</div></div>
-                                <div className='underline text-red-500'>aileenmatub2015@gmail.com</div>
-                                <div className='underline text-red-500'>mjervytrucking@yahoo.com</div>
-                                <div className='underline text-red-500'>rachelervytrucking08@gmail.com</div>
-                              </div>
-                            </div>
-                            <div className='viewer-top-body flex mt-6'>
-                              <div className='viewer-top-body-left w-[445px]'>
-                                <div className='flex'>
-                                  <div className='ml-1 w-[180px]'>SHIPPER NAME:</div>
-                                  <div className='font-normal h-[60px] flex items-center justify-center w-[290px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
-                                </div>
-                                <div className='flex mt-5'>
-                                  <div className='ml-1 w-[170px]'>DECLARED VALUE:</div>
-                                  <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>{jsonData[selectedRef]['DECLARED AMOUNT']}</span></div>
-                                </div>
-                              </div>
-                              <div className='viewer-top-body-right'>
-                                <div className='flex'>
-                                  <div className='w-[189px]'>CONSIGNEE NAME:</div>
-                                  <div className='font-normal h-[60px] w-[350px] bg-[#fbe4d5]'>{jsonData[selectedRef]['NAME OF DEALER']}</div>
-                                </div>
-                                <div className='flex'>
-                                  <div>CONSIGNEE CONTACT INFORMATION</div>
-                                  <div></div>
-                                </div>
-                                <div className='flex'>
-                                  <div className='w-[190px] flex items-center'>CONSIGNEE ADDRESS:</div>
-                                  <div className='font-normal h-[100px] flex items-center justify-center flex-1 bg-[#fbe4d5]'>{jsonData[selectedRef]['ADDRESS']}</div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className='viewer-bot-body flex justify-between'>
-                              <div className='viewer-bot-body-left flex-1'>
-                                <div className='items-center justify-center flex border border-l-0 h-[45px]'>DOCUMENT NUMBER</div>
-                                <div style={{backgroundColor: '#fbe4d5'}} className='h-[60px] flex items-center border border-l-0 border-t-0 pl-1'>{jsonData[selectedRef]['REF NO.']}</div>
-                                <div className='ml-1 flex h-[80px] items-center text-[20px] font-serif border-r-1'>REMARKS:</div>
-                                <div className='ml-1 border-r-1 pb-[48px]'>WARRANT THAT ALL DETAILS GIVEN ARE TRUE AND CORRECT</div>
-                                <div className='border-r-1 pl-8 border-t-1'>SHIPPER'S PRINTED NAME AND SIGNATURE/DATE</div>
-                                <div className='ml-1 pt-[24px] border-r-1 '>RECEIVED BY:</div>
-                                <div className='pt-[24px] border-r-1 ml-8'>CONSIGNEE PRINTED NAME AND SIGNATURE/DATE</div>
-                              </div>
-                              <div className='viewer-bot-body-right flex-1'>
-                                <div className='items-center justify-center flex border h-[45px] border-l-0 border-r-0'>NUMBER AND TYPE FO PACKAGE</div>
-                                <div className='h-[60px] flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5]'>
-                                  {jsonData[selectedRef]['No. Of Boxes']} {parseInt(jsonData[selectedRef]['No. Of Boxes'], 10) === 1 ? 'BOX' : 'BOXES'}
-                                </div>
-                                <div className='pt-[80px]'>ERVY LOGISTICS</div>
-                                <div className='pb-[24px]'>AUTHORIZED REPRESENTATIVE</div>
-                                <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
-                                <div className='flex'>TRUCK PLATE NO. <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
-                              </div>
-                            </div>
-                            <div className="grid gap-3 text-base hidden">
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">REF NO.:</span><span>{jsonData[selectedRef]['REF NO.']}</span></div>
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">DECLARED AMOUNT:</span><span>{jsonData[selectedRef]['DECLARED AMOUNT']}</span></div>
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">NAME OF DEALER:</span><span>{jsonData[selectedRef]['NAME OF DEALER']}</span></div>
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">ADDRESS:</span><span>{jsonData[selectedRef]['ADDRESS']}</span></div>
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">No. Of Boxes:</span><span>{jsonData[selectedRef]['No. Of Boxes']}</span></div>
-                              {jsonData[selectedRef]['Copy label'] && (
-                                <div className="flex gap-2"><span className="font-semibold min-w-[140px]">Copy label:</span><span>{jsonData[selectedRef]['Copy label']}</span></div>
-                              )}
-                              <div className="flex gap-2"><span className="font-semibold min-w-[140px]">Houseway Bill No:</span><span>{getHousewayBill(selectedRef)}</span></div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     ) : (
