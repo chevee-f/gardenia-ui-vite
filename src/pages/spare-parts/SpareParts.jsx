@@ -208,9 +208,9 @@ function SpareParts() {
     let printHtml = '';
     if (type === 'all') {
       printHtml += getPrintHtml('TTC COPY');
-      printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
+      printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
       printHtml += getPrintHtml("CUSTOMER COPY");
-      printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
+      printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
       printHtml += getPrintHtml('CARRIER COPY');
     } else {
       let label = '';
@@ -253,7 +253,7 @@ function SpareParts() {
       if (type === 'ttc') label = 'TTC COPY';
       if (type === 'customer') label = "CUSTOMER COPY";
       if (type === 'carrier') label = 'CARRIER COPY';
-      if (i > 0) printHtml += `<hr style='margin-top: 25px;margin-bottom: 25px;'/>`;
+      if (i > 0) printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
       printHtml += getPrintHtml(label);
     });
     printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
@@ -558,9 +558,9 @@ function SpareParts() {
                             <div className='viewer-header flex'>
                               <div className='viewer-header-left'>
                                 <div className='absolute top-0 left-0'>
-                                  <img src='src/assets/waybill-logo.png' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
+                                  <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
                                 </div>
-                                <div className='flex mt-[85px]'>
+                                <div className='flex mt-[75px]'>
                                   <div className='ml-1 w-[84px]'>Email address:</div>
                                   <div className='ml-[40px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
                                 </div>
@@ -575,7 +575,7 @@ function SpareParts() {
                                     {HOUSEWAY_BILL_NO}
                                   </div>
                                   <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedRef)}</div></div>
-                                <div className="mt-[33px]">
+                                <div className="mt-[23px]">
                                   <div className='underline text-red-500'>{EMAILS[1]}</div>
                                   <div className='underline text-red-500'>{EMAILS[2]}</div>
                                   <div className='underline text-red-500'>{EMAILS[3]}</div>
@@ -590,7 +590,9 @@ function SpareParts() {
                                 </div>
                                 <div className='flex mt-5'>
                                   <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
-                                  <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>{jsonData[selectedRef]['DECLARED AMOUNT']}</span></div>
+                                  <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
+                                    {Number(jsonData[selectedRef]['DECLARED AMOUNT'].replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span></div>
                                 </div>
                               </div>
                               <div className='viewer-top-body-right'>
@@ -611,7 +613,9 @@ function SpareParts() {
                             <div className='viewer-bot-body flex justify-between'>
                               <div className='viewer-bot-body-left flex-1'>
                                 <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
-                                <div style={{backgroundColor: '#fbe4d5'}} className='pt-[15px] pb-[15px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>{jsonData[selectedRef]['REF NO.']}</div>
+                                <div style={{backgroundColor: '#fbe4d5'}} className='pt-[15px] pb-[15px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
+                                  {jsonData[selectedRef]['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )')}
+                                </div>
                                 <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
                                 <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
                                 <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
@@ -630,7 +634,7 @@ function SpareParts() {
                               </div>
                             </div>
                             
-                            <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5'}}>
+                            <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
                               This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
                               </div>
                           </div>
