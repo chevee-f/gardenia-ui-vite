@@ -55,6 +55,7 @@ function SpareParts() {
   const [editingGlobalHousewayBill, setEditingGlobalHousewayBill] = useState(false);
   const [tempGlobalHousewayBill, setTempGlobalHousewayBill] = useState('');
   const [printChecks, setPrintChecks] = useState({ ttc: false, customer: false, carrier: false });
+  const [leftPanelSearch, setLeftPanelSearch] = useState("");
 
   // When selectedGroupKey changes, open the accordion by default
   useEffect(() => {
@@ -225,9 +226,9 @@ function SpareParts() {
     let printHtml = '';
     if (type === 'all') {
       printHtml += getPrintHtml('TTC COPY');
-      printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
+      printHtml += `<div style='height: 700px;'></div>`;
       printHtml += getPrintHtml("CUSTOMER COPY");
-      printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
+      printHtml += `<div style='height: 700px;'></div>`;
       printHtml += getPrintHtml('CARRIER COPY');
     } else {
       let label = '';
@@ -270,7 +271,7 @@ function SpareParts() {
       if (type === 'ttc') label = 'TTC COPY';
       if (type === 'customer') label = "CUSTOMER COPY";
       if (type === 'carrier') label = 'CARRIER COPY';
-      if (i > 0) printHtml += `<div style='margin-top: 25px;border-top: 1px dashed #ccc; padding-bottom: 25px;'></div>`;
+      if (i > 0) printHtml += `<div style='height: 700px;'></div>`;
       printHtml += getPrintHtml(label);
     });
     printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
@@ -482,7 +483,7 @@ function SpareParts() {
                   <button className="text-gray-500 hover:text-gray-700 text-3xl" onClick={() => setModalOpen(false)}>&times;</button>
                 </div>
                 <div className="flex flex-1 overflow-hidden relative">
-                  <div className="w-1/5 absolute top-0">
+                  <div className=" hidden w-1/5 absolute top-0">
                     <button
                       className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded shadow"
                       onClick={() => setShowLeftPanel((v) => !v)}
@@ -493,47 +494,59 @@ function SpareParts() {
                   {/* Left panel: REF NO. list */}
                   {showLeftPanel && (
                     <div className="w-1/5 border-r overflow-y-auto p-3 transition-all duration-300">
-                      <div className="relative">
+                      <div className="relative mb-2">
+                        <input
+                          type="text"
+                          placeholder="Search REF NO."
+                          value={leftPanelSearch}
+                          onChange={e => setLeftPanelSearch(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                         <h3 className="text-lg font-medium mb-4">REF NO. List</h3>
                       </div>
                       <ul>
                         {(() => {
                           const groups = groupByParenthesis(jsonData);
-                          return Object.entries(groups).map(([key, group], i) => (
-                            <li
-                              key={key}
-                              className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${
-                                reviewedRefs[key]
-                                  ? 'bg-green-200 text-green-900 font-semibold'
-                                  : selectedGroupKey === key
-                                    ? 'bg-blue-100 text-blue-700 font-semibold'
-                                    : 'hover:bg-gray-100'
-                              }`}
-                              onClick={() => {
-                                setSelectedGroupKey(key);
-                                setPrintChecks({ ttc: false, customer: false, carrier: false });
-                              }}
-                            >
-                              {(() => {
-                                const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
-                                const lines = [];
-                                for (let i = 0; i < refs.length; i += 3) {
-                                  lines.push(refs.slice(i, i + 3));
-                                }
-                                return (
-                                  <div className='border-b-1'>
-                                    {lines.map((line, idx) => (
-                                      <div key={idx}>
-                                        {line.map((ref, j) => (
-                                          <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
-                                        ))}
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
-                            </li>
-                          ));
+                          const search = leftPanelSearch.trim().toLowerCase();
+                          return Object.entries(groups)
+                            .filter(([key, group]) =>
+                              !search || group.rows.some(r => (r['REF NO.'] || '').toLowerCase().includes(search))
+                            )
+                            .map(([key, group], i) => (
+                              <li
+                                key={key}
+                                className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${
+                                  reviewedRefs[key]
+                                    ? 'bg-green-200 text-green-900 font-semibold'
+                                    : selectedGroupKey === key
+                                      ? 'bg-blue-100 text-blue-700 font-semibold'
+                                      : 'hover:bg-gray-100'
+                                }`}
+                                onClick={() => {
+                                  setSelectedGroupKey(key);
+                                  setPrintChecks({ ttc: false, customer: false, carrier: false });
+                                }}
+                              >
+                                {(() => {
+                                  const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                                  const lines = [];
+                                  for (let i = 0; i < refs.length; i += 3) {
+                                    lines.push(refs.slice(i, i + 3));
+                                  }
+                                  return (
+                                    <div className='border-b-1'>
+                                      {lines.map((line, idx) => (
+                                        <div key={idx}>
+                                          {line.map((ref, j) => (
+                                            <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
+                                          ))}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
+                              </li>
+                            ));
                         })()}
                       </ul>
                     </div>
