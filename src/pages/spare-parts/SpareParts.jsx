@@ -45,7 +45,7 @@ function SpareParts() {
   const [colWidths, setColWidths] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRef, setSelectedRef] = useState(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState(null);
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   // New state for reviewed and houseway bill numbers
   const [reviewedRefs, setReviewedRefs] = useState({}); // { idx: true }
@@ -56,10 +56,10 @@ function SpareParts() {
   const [tempGlobalHousewayBill, setTempGlobalHousewayBill] = useState('');
   const [printChecks, setPrintChecks] = useState({ ttc: false, customer: false, carrier: false });
 
-  // When selectedRef changes, open the accordion by default
+  // When selectedGroupKey changes, open the accordion by default
   useEffect(() => {
     setDetailsAccordionOpen(true);
-  }, [selectedRef]);
+  }, [selectedGroupKey]);
 
   // Helper to increment houseway bill numbers
   function incrementHousewayBill(base, inc) {
@@ -71,25 +71,42 @@ function SpareParts() {
     return `${prefix}-${num.toString().padStart(4, '0')}`;
   }
 
-  // When globalHousewayBill changes, update all housewayBillNos for non-overridden fields
+  // Update useEffect for globalHousewayBill to use group keys
   useEffect(() => {
-    if (!/^\d{3}-\d{4}$/.test(globalHousewayBill) || !jsonData) return;
+    if (!/^[\d]{3}-[\d]{4}$/.test(globalHousewayBill) || !jsonData) return;
+    const groups = groupByParenthesis(jsonData);
     setHousewayBillNos(prev => {
       const updated = { ...prev };
-      for (let i = 0; i < jsonData.length; i++) {
-        // Only update if not overridden
-        if (!prev[i] || prev[i]._auto) {
-          updated[i] = { value: incrementHousewayBill(globalHousewayBill, i), _auto: true };
+      Object.keys(groups).forEach((key, i) => {
+        if (!prev[key] || prev[key]._auto) {
+          updated[key] = { value: incrementHousewayBill(globalHousewayBill, i), _auto: true };
         }
-      }
+      });
       return updated;
     });
   }, [globalHousewayBill, jsonData]);
 
-  // On file load, set default global houseway bill if not set
+  // On file load, initialize housewayBillNos and reviewedRefs by group key
   useEffect(() => {
-    if (jsonData && jsonData.length > 0 && !globalHousewayBill) {
-      setGlobalHousewayBill('000-0001');
+    if (jsonData && jsonData.length > 0) {
+      const groups = groupByParenthesis(jsonData);
+      setHousewayBillNos(prev => {
+        const updated = { ...prev };
+        Object.keys(groups).forEach((key, i) => {
+          if (!updated[key]) {
+            updated[key] = { value: incrementHousewayBill(globalHousewayBill || '000-0001', i), _auto: true };
+          }
+        });
+        return updated;
+      });
+      setReviewedRefs(prev => {
+        const updated = { ...prev };
+        Object.keys(groups).forEach(key => {
+          if (!(key in updated)) updated[key] = false;
+        });
+        return updated;
+      });
+      if (!globalHousewayBill) setGlobalHousewayBill('000-0001');
     }
   }, [jsonData]);
 
@@ -147,7 +164,7 @@ function SpareParts() {
   };
 
   const handleRefClick = (idx) => {
-    setSelectedRef(idx);
+    setSelectedGroupKey(idx);
   };
 
   // Handle review button
@@ -221,7 +238,7 @@ function SpareParts() {
     }
     printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
     printWindow.document.close();
-    printWindow.print();
+    // printWindow.print();
   };
 
   // New: Print only selected types in one popup
@@ -258,7 +275,7 @@ function SpareParts() {
     });
     printWindow.document.write('<html><head><title>Print Viewer</title>' + printStyle + '</head><body>' + printHtml + '</body></html>');
     printWindow.document.close();
-    printWindow.print();
+    // printWindow.print();
   };
 
   // Helper for print logic
@@ -275,6 +292,22 @@ function SpareParts() {
   const handlePrintAllBox = (idx) => {
     handlePrintViewer(idx, 'all');
   };
+
+  // === Add helper to group by parenthesis value ===
+  function groupByParenthesis(data) {
+    const groups = {};
+    data.forEach((row, idx) => {
+      const ref = row['REF NO.'];
+      const match = ref && ref.match(/\(([^)]*)\)/);
+      if (match) {
+        const key = match[1];
+        if (!groups[key]) groups[key] = { rows: [], indices: [] };
+        groups[key].rows.push(row);
+        groups[key].indices.push(idx);
+      }
+    });
+    return groups;
+  }
 
   return (
     <div className="p-8">
@@ -455,216 +488,284 @@ function SpareParts() {
                         <h3 className="text-lg font-medium mb-4">REF NO. List</h3>
                       </div>
                       <ul>
-                        {jsonData
-                          .filter(row => row['REF NO.'] && row['REF NO.'].trim() !== '')
-                          .map((row, idx) => (
+                        {(() => {
+                          const groups = groupByParenthesis(jsonData);
+                          return Object.entries(groups).map(([key, group], i) => (
                             <li
-                              key={row['REF NO.'] + idx}
-                              className={`cursor-pointer px-4 py-3 rounded mb-2 ${selectedRef === idx ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-                              onClick={() => handleRefClick(idx)}
+                              key={key}
+                              className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${selectedGroupKey === key ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+                              onClick={() => setSelectedGroupKey(key)}
                             >
-                              {row['REF NO.']}
-                              {reviewedRefs[idx] && <span className="ml-2 text-green-600 font-semibold">(Reviewed)</span>}
+                              {(() => {
+                                const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                                const lines = [];
+                                for (let i = 0; i < refs.length; i += 3) {
+                                  lines.push(refs.slice(i, i + 3));
+                                }
+                                return (
+                                  <div className='border-b-1'>
+                                    {lines.map((line, idx) => (
+                                      <div key={idx}>
+                                        {line.map((ref, j) => (
+                                          <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                             </li>
-                          ))}
+                          ));
+                        })()}
                       </ul>
                     </div>
                   )}
                   {/* Right panel: details */}
                   <div className="flex-1 p-8 overflow-y-auto">
-                    {selectedRef !== null && jsonData[selectedRef] ? (
-                      <div className="space-y-4">
-                        <h3 className="text-xl font-semibold mb-6">
-                          Details for REF NO. {jsonData[selectedRef]['REF NO.']}
-                          {/* Show reviewed label if reviewed */}
-                          {reviewedRefs[selectedRef] && (
-                            <span className="text-green-600 font-semibold ml-2 mt-4">Reviewed</span>
-                          )}
-                        </h3>
-                        <div className='flex'>
-                          <div className='mr-6'>
-                            <div className="houseway-bill-no-field mb-4">
-                              <label className="block font-medium mb-1">Houseway Bill No:</label>
-                              <input
-                                type="text"
-                                className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="000-0000"
-                                value={getHousewayBill(selectedRef)}
-                                onChange={e => handleHousewayBillChange(selectedRef, e.target.value)}
-                                maxLength={8}
-                              />
-                              {getHousewayBill(selectedRef) && !/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedRef)) && (
-                                <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
-                              )}
-                            </div>
-                            <div className="flex gap-4 mt-4 flex-wrap">
-                              <button
-                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                onClick={() => handleConfirmReview(selectedRef)}
-                                disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedRef) || '')}
-                              >
-                                Mark as Reviewed
-                              </button>
-                            </div>
-                          </div>
-                          {/* Print options box */}
-                          <div className="border border-gray-300 rounded p-4 mb-2 w-full max-w-xs" style={{padding:10}}>
-                            <div className="mb-3 font-semibold">Print Options</div>
-                            <div className="flex flex-col gap-2 mb-4">
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={printChecks.ttc}
-                                  onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
-                                />
-                                TTC Copy
-                              </label>
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={printChecks.customer}
-                                  onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
-                                />
-                                Customer's Copy
-                              </label>
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={printChecks.carrier}
-                                  onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
-                                />
-                                Carrier Copy
-                              </label>
-                            </div>
-                            <div className="flex gap-3 mt-2">
-                              <button
-                                className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                                onClick={() => handlePrintSelected(selectedRef)}
-                                disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
-                              >
-                                Print
-                              </button>
-                              <button
-                                className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
-                                onClick={() => handlePrintAllBox(selectedRef)}
-                              >
-                                Print All
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold" id={`viewer-content-${selectedRef}`}>
-                          <div className='font-bold text-[12px]'>
-                            <div className='viewer-header flex'>
-                              <div className='viewer-header-left'>
-                                <div className='absolute top-0 left-0'>
-                                  <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
-                                </div>
-                                <div className='flex mt-[75px]'>
-                                  <div className='ml-1 w-[84px]'>Email address:</div>
-                                  <div className='ml-[40px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
-                                </div>
+                    {selectedGroupKey !== null && (() => {
+                      const groups = groupByParenthesis(jsonData);
+                      const group = groups[selectedGroupKey];
+                      if (!group) return <div className="text-gray-400 text-center mt-20">Select a REF NO. to view details</div>;
+                      // Sum declared amount
+                      const sumDeclared = group.rows.reduce((sum, row) => sum + Number(row['DECLARED AMOUNT'].replace(/,/g, '') || 0), 0);
+                      // Use first row for other fields
+                      const firstRow = group.rows[0];
+                      return (
+                        <div className="space-y-4">
+                          <h3 className="text-xl font-semibold mb-6">
+                            Details for REF NO. {(() => {
+                              const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                              const lines = [];
+                              for (let i = 0; i < refs.length; i += 3) {
+                                lines.push(refs.slice(i, i + 3));
+                              }
+                              return (
                                 <div className='flex'>
-                                  <div className='ml-1'>Contact Number:</div>
-                                  <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
+                                  {lines.map((line, idx) => (
+                                    <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
+                                      {line.map((ref, j) => (
+                                        <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
+                                      ))}
+                                    </div>
+                                  ))}
                                 </div>
+                              );
+                            })()}
+                          </h3>
+                          <div className='flex'>
+                            <div className='mr-6'>
+                              <div className="houseway-bill-no-field mb-4">
+                                <label className="block font-medium mb-1">Houseway Bill No:</label>
+                                <input
+                                  type="text"
+                                  className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="000-0000"
+                                  value={getHousewayBill(selectedGroupKey)}
+                                  onChange={e => handleHousewayBillChange(selectedGroupKey, e.target.value)}
+                                  maxLength={8}
+                                />
+                                {getHousewayBill(selectedGroupKey) && !/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey)) && (
+                                  <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
+                                )}
                               </div>
-                              <div className='viewer-header-right ml-[40px] mt-[20px]'>
-                                <div className='flex font-serif items-center'>
-                                  <div>
-                                    {HOUSEWAY_BILL_NO}
+                              <div className="flex gap-4 mt-4 flex-wrap">
+                                <button
+                                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                  onClick={() => handleConfirmReview(selectedGroupKey)}
+                                  disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
+                                >
+                                  Mark as Reviewed
+                                </button>
+                              </div>
+                            </div>
+                            {/* Print options box */}
+                            <div className="border border-gray-300 rounded p-4 mb-2 w-full max-w-xs" style={{padding:10}}>
+                              <div className="mb-3 font-semibold">Print Options</div>
+                              <div className="flex flex-col gap-2 mb-4">
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={printChecks.ttc}
+                                    onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
+                                  />
+                                  TTC Copy
+                                </label>
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={printChecks.customer}
+                                    onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
+                                  />
+                                  Customer's Copy
+                                </label>
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={printChecks.carrier}
+                                    onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
+                                  />
+                                  Carrier Copy
+                                </label>
+                              </div>
+                              <div className="flex gap-3 mt-2">
+                                <button
+                                  className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                  onClick={() => handlePrintSelected(selectedGroupKey)}
+                                  disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
+                                >
+                                  Print
+                                </button>
+                                <button
+                                  className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
+                                  onClick={() => handlePrintAllBox(selectedGroupKey)}
+                                >
+                                  Print All
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold" id={`viewer-content-${selectedGroupKey}`}>
+                            <div className='font-bold text-[12px]'>
+                              <div className='viewer-header flex'>
+                                <div className='viewer-header-left'>
+                                  <div className='absolute top-0 left-0'>
+                                    <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
                                   </div>
-                                  <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedRef)}</div></div>
-                                <div className="mt-[23px]">
-                                  <div className='underline text-red-500'>{EMAILS[1]}</div>
-                                  <div className='underline text-red-500'>{EMAILS[2]}</div>
-                                  <div className='underline text-red-500'>{EMAILS[3]}</div>
+                                  <div className='flex mt-[75px]'>
+                                    <div className='ml-1 w-[84px]'>Email address:</div>
+                                    <div className='ml-[36px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
+                                  </div>
+                                  <div className='flex'>
+                                    <div className='ml-1'>Contact Number:</div>
+                                    <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
+                                  </div>
+                                </div>
+                                <div className='viewer-header-right ml-[40px] mt-[20px]'>
+                                  <div className='flex font-serif items-center'>
+                                    <div>
+                                      {HOUSEWAY_BILL_NO}
+                                    </div>
+                                    <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedGroupKey)}</div></div>
+                                  <div className="mt-[23px]">
+                                    <div className='underline text-red-500'>{EMAILS[1]}</div>
+                                    <div className='underline text-red-500'>{EMAILS[2]}</div>
+                                    <div className='underline text-red-500'>{EMAILS[3]}</div>
+                                  </div>
                                 </div>
                               </div>
+                              <div className='viewer-top-body flex mt-[15px]'>
+                                <div className='viewer-top-body-left w-[445px]'>
+                                  <div className='flex'>
+                                    <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
+                                    <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
+                                  </div>
+                                  <div className='flex mt-5'>
+                                    <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
+                                    <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
+                                      {sumDeclared.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span></div>
+                                  </div>
+                                </div>
+                                <div className='viewer-top-body-right'>
+                                  <div className='flex'>
+                                    <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
+                                    <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['NAME OF DEALER']}</div>
+                                  </div>
+                                  <div className='flex'>
+                                    <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
+                                    <div></div>
+                                  </div>
+                                  <div className='flex'>
+                                    <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
+                                    <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['ADDRESS']}</div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className='viewer-bot-body flex justify-between'>
+                                <div className='viewer-bot-body-left flex-1'>
+                                  <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
+                                  <div style={{backgroundColor: '#fbe4d5'}} className='h-[70px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
+                                    {(() => {
+                                      const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                                      const lines = [];
+                                      for (let i = 0; i < refs.length; i += 3) {
+                                        lines.push(refs.slice(i, i + 3));
+                                      }
+                                      return (
+                                        <div className='flex'>
+                                          {lines.map((line, idx) => (
+                                            <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
+                                              {line.map((ref, j) => (
+                                                <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
+                                              ))}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                  <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
+                                  <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
+                                  <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
+                                  <div className='border-r-1 pb-5 border-b-1'>{RECEIVED_BY}</div>
+                                  <div className='border-r-1 ml-8'>{CONSIGNEE_PRINTED}</div>
+                                </div>
+                                <div className='viewer-bot-body-right flex-1'>
+                                  <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>{NUMBER_TYPE_PACKAGE}</div>
+                                  <div className='h-[70px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
+                                    {(() => {
+                                      const boxVal = group.rows.find(r => r['No. Of Boxes'] && r['No. Of Boxes'].trim() !== '')?.['No. Of Boxes'] || '';
+                                      const bundleVal = group.rows.find(r => r['NO. OF BUNDLES'] && r['NO. OF BUNDLES'].trim() !== '')?.['NO. OF BUNDLES'] || '';
+                                      const numBox = parseInt(boxVal, 10);
+                                      const numBundle = parseInt(bundleVal, 10);
+                                      let result = '';
+                                      if (boxVal) {
+                                        result += `${numBox} ${numBox === 1 ? 'BOX' : 'BOXES'}`;
+                                      }
+                                      if (bundleVal) {
+                                        if (result) result += ' & ';
+                                        result += `${numBundle} ${numBundle === 1 ? 'BUNDLE' : 'BUNDLES'}`;
+                                      }
+                                      return result;
+                                    })()}
+                                  </div>
+                                  <div className='pt-[40px] pl-1'>{ERVY_LOGISTICS}</div>
+                                  <div className='pb-[18px] pl-1'>{AUTHORIZED_REPRESENTATIVE}</div>
+                                  <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
+                                  <div className='flex pl-1'>{TRUCK_PLATE_NO} <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
+                                </div>
+                              </div>
+                              
+                              <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
+                                This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
+                                </div>
                             </div>
-                            <div className='viewer-top-body flex mt-6'>
-                              <div className='viewer-top-body-left w-[445px]'>
-                                <div className='flex'>
-                                  <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
-                                  <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
-                                </div>
-                                <div className='flex mt-5'>
-                                  <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
-                                  <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
-                                    {Number(jsonData[selectedRef]['DECLARED AMOUNT'].replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span></div>
-                                </div>
-                              </div>
-                              <div className='viewer-top-body-right'>
-                                <div className='flex'>
-                                  <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
-                                  <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{jsonData[selectedRef]['NAME OF DEALER']}</div>
-                                </div>
-                                <div className='flex'>
-                                  <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
-                                  <div></div>
-                                </div>
-                                <div className='flex'>
-                                  <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
-                                  <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{jsonData[selectedRef]['ADDRESS']}</div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className='viewer-bot-body flex justify-between'>
-                              <div className='viewer-bot-body-left flex-1'>
-                                <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
-                                <div style={{backgroundColor: '#fbe4d5'}} className='pt-[15px] pb-[15px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
-                                  {jsonData[selectedRef]['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )')}
-                                </div>
-                                <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
-                                <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
-                                <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
-                                <div className='border-r-1 pb-5 border-b-1'>{RECEIVED_BY}</div>
-                                <div className='border-r-1 ml-8'>{CONSIGNEE_PRINTED}</div>
-                              </div>
-                              <div className='viewer-bot-body-right flex-1'>
-                                <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>{NUMBER_TYPE_PACKAGE}</div>
-                                <div className='pt-[15px] pb-[15px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
-                                  {jsonData[selectedRef]['No. Of Boxes']} {parseInt(jsonData[selectedRef]['No. Of Boxes'], 10) === 1 ? 'BOX' : 'BOXES'}
-                                </div>
-                                <div className='pt-[40px] pl-1'>{ERVY_LOGISTICS}</div>
-                                <div className='pb-[18px] pl-1'>{AUTHORIZED_REPRESENTATIVE}</div>
-                                <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
-                                <div className='flex pl-1'>{TRUCK_PLATE_NO} <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
-                              </div>
-                            </div>
-                            
-                            <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
-                              This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
-                              </div>
+                          </div>{/* Accordion for details table */}
+                          <div className="mt-4">
+                            <button
+                              className="w-full flex items-center justify-between px-4 py-3 bg-gray-200 hover:bg-gray-300 rounded-t-lg focus:outline-none"
+                              onClick={() => setDetailsAccordionOpen(v => !v)}
+                              aria-expanded={detailsAccordionOpen}
+                            >
+                              <span className="font-semibold text-lg">Details Table</span>
+                              <span className="ml-2">{detailsAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+                            {!detailsAccordionOpen && (
+                              <table className="w-full text-base border rounded-b-lg shadow bg-white">
+                                <tbody>
+                                  {Object.entries(firstRow).map(([key, value]) => (
+                                    <tr key={key}>
+                                      <td className="font-medium pr-6 py-2 text-gray-600 align-top whitespace-nowrap">{key}</td>
+                                      <td className="py-2 break-words whitespace-normal">{value}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
                           </div>
-                        </div>{/* Accordion for details table */}
-                        <div className="mt-4">
-                          <button
-                            className="w-full flex items-center justify-between px-4 py-3 bg-gray-200 hover:bg-gray-300 rounded-t-lg focus:outline-none"
-                            onClick={() => setDetailsAccordionOpen(v => !v)}
-                            aria-expanded={detailsAccordionOpen}
-                          >
-                            <span className="font-semibold text-lg">Details Table</span>
-                            <span className="ml-2">{detailsAccordionOpen ? '▲' : '▼'}</span>
-                          </button>
-                          {!detailsAccordionOpen && (
-                            <table className="w-full text-base border rounded-b-lg shadow bg-white">
-                              <tbody>
-                                {Object.entries(jsonData[selectedRef]).map(([key, value]) => (
-                                  <tr key={key}>
-                                    <td className="font-medium pr-6 py-2 text-gray-600 align-top whitespace-nowrap">{key}</td>
-                                    <td className="py-2 break-words whitespace-normal">{value}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-center mt-20">Select a REF NO. to view details</div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
