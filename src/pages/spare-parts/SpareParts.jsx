@@ -375,13 +375,22 @@ function SpareParts() {
                           <button className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500" onClick={() => handleReview(idx)}>Review</button>
                         )}
                         <div className="flex gap-4 mt-4 flex-wrap">
-                          <button
-                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                            onClick={() => handleConfirmReview(idx)}
-                            disabled={!/^\d{3}-\d{4}$/.test(getHousewayBill(idx) || '')}
-                          >
-                            Mark as Reviewed
-                          </button>
+                          {reviewedRefs[idx] ? (
+                            <button
+                              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                              onClick={() => setReviewedRefs(prev => ({ ...prev, [idx]: false }))}
+                            >
+                              Mark as Unreviewed
+                            </button>
+                          ) : (
+                            <button
+                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                              onClick={() => handleConfirmReview(idx)}
+                              disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(idx) || '')}
+                            >
+                              Mark as Reviewed
+                            </button>
+                          )}
                           <button
                             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             onClick={() => handlePrintViewer(idx, 'ttc')}
@@ -493,8 +502,17 @@ function SpareParts() {
                           return Object.entries(groups).map(([key, group], i) => (
                             <li
                               key={key}
-                              className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${selectedGroupKey === key ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-                              onClick={() => setSelectedGroupKey(key)}
+                              className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${
+                                reviewedRefs[key]
+                                  ? 'bg-green-200 text-green-900 font-semibold'
+                                  : selectedGroupKey === key
+                                    ? 'bg-blue-100 text-blue-700 font-semibold'
+                                    : 'hover:bg-gray-100'
+                              }`}
+                              onClick={() => {
+                                setSelectedGroupKey(key);
+                                setPrintChecks({ ttc: false, customer: false, carrier: false });
+                              }}
                             >
                               {(() => {
                                 const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
@@ -569,13 +587,22 @@ function SpareParts() {
                                 )}
                               </div>
                               <div className="flex gap-4 mt-4 flex-wrap">
-                                <button
-                                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                  onClick={() => handleConfirmReview(selectedGroupKey)}
-                                  disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
-                                >
-                                  Mark as Reviewed
-                                </button>
+                                {reviewedRefs[selectedGroupKey] ? (
+                                  <button
+                                    className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                                    onClick={() => setReviewedRefs(prev => ({ ...prev, [selectedGroupKey]: false }))}
+                                  >
+                                    Mark as Unreviewed
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                    onClick={() => handleConfirmReview(selectedGroupKey)}
+                                    disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
+                                  >
+                                    Mark as Reviewed
+                                  </button>
+                                )}
                               </div>
                             </div>
                             {/* Print options box */}
