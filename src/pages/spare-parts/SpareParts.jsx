@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 // import { ResizableBox } from 'react-resizable';
 // import 'react-resizable/css/styles.css';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
+import { HiOutlineUpload, HiOutlineRefresh, HiOutlineSearch, HiOutlineEye } from 'react-icons/hi';
+import { deleteWaybill, saveWaybill } from '../../services/Waybill.service';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 // === CONSTANTS ===
 const COPY_LABELS = {
@@ -56,6 +60,11 @@ function SpareParts() {
   const [tempGlobalHousewayBill, setTempGlobalHousewayBill] = useState('');
   const [printChecks, setPrintChecks] = useState({ ttc: false, customer: false, carrier: false });
   const [leftPanelSearch, setLeftPanelSearch] = useState("");
+  const [dashboardFileName, setDashboardFileName] = useState('');
+  const [refNoFilter, setRefNoFilter] = useState('all'); // 'all', 'reviewed', 'unreviewed'
+  const [waybillDisabled, setWaybillDisabled] = useState(false);
+
+  const fileInputRef = useRef();
 
   // When selectedGroupKey changes, open the accordion by default
   useEffect(() => {
@@ -110,11 +119,66 @@ function SpareParts() {
       if (!globalHousewayBill) setGlobalHousewayBill('000-0001');
     }
   }, [jsonData]);
+  const getSavedDr = useQuery(api.dr.getSavedDr, jsonData ? {
+    data: jsonData.map(item => ({
+      ref_no: item["REF NO."] || "",
+      // group_ref_no: "", // You need to decide where this comes from
+      // waybill_no: "" // This will be empty initially since waybill is assigned during review
+    }))
+  } : "skip");
+
+  // Check for saved DRs and mark them as reviewed
+  useEffect(() => {
+    if (getSavedDr && jsonData && jsonData.length > 0) {
+      const groups = groupByParenthesis(jsonData);
+      
+      setReviewedRefs(prev => {
+        const updated = { ...prev };
+        
+        // For each group, check if any of its DRs are saved
+        Object.keys(groups).forEach(groupKey => {
+          const groupRows = groups[groupKey].rows;
+          
+          // Check if any row in this group has a matching saved DR
+          const hasSavedDr = groupRows.some(row => 
+            getSavedDr.some(savedDr => savedDr.ref_no === row["REF NO."])
+          );
+          
+          if (hasSavedDr) {
+            updated[groupKey] = true;
+          }
+        });
+        
+        return updated;
+      });
+
+      // Update houseway bill numbers for saved DRs
+      setHousewayBillNos(prev => {
+        const updated = { ...prev };
+        
+        Object.keys(groups).forEach(groupKey => {
+          const groupRows = groups[groupKey].rows;
+          
+          // Find the saved DR for this group
+          const savedDr = getSavedDr.find(savedDr => 
+            groupRows.some(row => savedDr.ref_no === row["REF NO."])
+          );
+          
+          if (savedDr && savedDr.waybill_no) {
+            updated[groupKey] = { value: savedDr.waybill_no, _auto: false };
+          }
+        });
+        
+        return updated;
+      });
+    }
+  }, [getSavedDr, jsonData]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    setDashboardFileName(file.name);
     // Read file as ArrayBuffer
     const data = await file.arrayBuffer();
     // Dynamically import xlsx for browser compatibility
@@ -156,27 +220,86 @@ function SpareParts() {
     // if (totals) {
     //   json.push(totals);
     // }
-    setJsonData(json);
     console.log(json);
+    setJsonData(json);
+    // setJsonData(json.slice(0, 5));
+    // console.log(JSON.stringify(json));
     // Set default column widths, with reduced width for specific columns
     const reducedCols = ['DR/SI DATE', 'No. Of Boxes', 'NO. OF BUNDLES'];
     const widths = keys.map(key => reducedCols.includes(key?.toString().trim()) ? 90 : 160);
     setColWidths([60, ...widths]); // 60px for index column
   };
 
-  const handleRefClick = (idx) => {
-    setSelectedGroupKey(idx);
-  };
-
-  // Handle review button
-  const handleReview = (idx) => {
-    // viewerOpen state and logic removed
-  };
-
+  const saveDr = useMutation(api.dr.saveDr);
+  const deleteDr = useMutation(api.dr.deleteDr);
   // Confirm review
-  const handleConfirmReview = (idx) => {
-    setReviewedRefs(prev => ({ ...prev, [idx]: true }));
+  const handleConfirmReview = async (idx) => {
+    setWaybillDisabled(true);
+    let data = jsonData.filter(item =>
+      item["REF NO."]?.includes(`(${idx})`)
+    );
+
+    data = data.map(item => ({
+      ...item,
+      waybill_no: housewayBillNos[idx].value
+    }));
+
+    try {
+      console.log(JSON.stringify(data));
+      const formattedData = data.map(item => ({
+        ref_no: item["REF NO."] || "",
+        group_ref_no: "", // You need to decide where this comes from
+        waybill_no: item["waybill_no"] || "",
+        drsi_date: item["DR/SI DATE"] || null,
+        name_of_dealer: item["NAME OF DEALER"] || null,
+        contact_person: item["Contact Person"] || null,
+        contact_no: item["Contact No."] || null,
+        address: item["ADDRESS"] || null,
+        declared_amount: item["DECLARED AMOUNT"] 
+        ? String(item["DECLARED AMOUNT"]) 
+        : null,
+        no_of_boxes: item["No. Of Boxes"] ? parseFloat(item["No. Of Boxes"]) : null,
+        no_of_bundles: item["NO. OF BUNDLES"] ? parseFloat(item["NO. OF BUNDLES"]) : null,
+        dispatched_by: item["DISPATCHED BY:"] || null
+      }));
+      await saveDr({ data: formattedData });
+      // await saveWaybill({ data });
+      setReviewedRefs(prev => ({ ...prev, [idx]: true }));
+      // setWaybillDisabled(false);
+    } catch (err) {
+      // optional: show toast or alert
+      console.error('Failed to save waybill:', err);
+    }
   };
+
+  const handleConfirmUnreview = async (idx) => {
+    setWaybillDisabled(true);
+    let data = jsonData.filter(item =>
+      item["REF NO."]?.includes(`(${idx})`)
+    );
+
+    data = data.map(item => ({
+      ...item,
+      waybill_no: housewayBillNos[idx].value
+    }));
+
+    try {
+      // await deleteWaybill({ data });
+      
+      const formattedData = data.map(item => ({
+        ref_no: item["REF NO."] || "",
+        group_ref_no: "", // You need to decide where this comes from
+        waybill_no: item["waybill_no"] || ""
+      }));
+      console.log(formattedData);
+      await deleteDr({ data: formattedData });
+      setReviewedRefs(prev => ({ ...prev, [idx]: false }));
+      setWaybillDisabled(false);
+    } catch (err) {
+      // optional: show toast or alert
+      console.error('Failed to save waybill:', err);
+    }
+  }
 
   // When user edits a specific field, mark it as overridden
   const handleHousewayBillChange = (idx, value) => {
@@ -311,222 +434,497 @@ function SpareParts() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Spare Parts</h1>
-      <input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Sticky Header Bar */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">Spare Parts</h1>
+          {dashboardFileName && (
+            <span className="ml-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">{dashboardFileName}</span>
+          )}
+          <button
+            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
+            onClick={() => window.location.href = '/spare-parts/billing'}
+          >
+            Billing
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 text-sm font-medium transition shadow"
+            onClick={() => window.location.reload()}
+          >
+            <HiOutlineRefresh className="w-5 h-5" /> Refresh
+          </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          >
+            <HiOutlineUpload className="w-5 h-5" /> {dashboardFileName ? 'Change File' : 'Upload Excel'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+      </div>
+      {/* Upload Card (if no file) */}
+      {!dashboardFileName && (
+        <div className="flex flex-col items-center justify-center h-96">
+          <div className="bg-white rounded-xl shadow-lg p-10 flex flex-col items-center border border-dashed border-blue-400">
+            <HiOutlineUpload className="w-16 h-16 text-blue-500 mb-4" />
+            <div className="text-lg font-semibold mb-2">Upload Spare Parts Excel File</div>
+            <div className="text-gray-500 mb-4">Drag and drop or <span className="text-blue-600 underline cursor-pointer" onClick={() => fileInputRef.current && fileInputRef.current.click()}>browse</span> to select a file</div>
+            <button
+              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            >
+              <HiOutlineUpload className="w-5 h-5" /> Select File
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Table Card */}
       {jsonData && jsonData.length > 0 && (
-        <div className="overflow-x-auto mt-6">
-          {/* Search/filter input and button */}
-          <div className="flex items-center justify-between w-full max-w-4xl mb-4 gap-4">
+        <div className="max-w-7xl mx-auto mt-10 bg-white rounded-2xl shadow-lg p-8">
+          {/* Search Bar */}
+          <div className="flex items-center gap-4 mb-6 relative">
             <div className="relative flex-1 max-w-md">
               <input
                 type="text"
-                placeholder="Search Spare Parts"
+                placeholder="Search Spare Parts..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">🔍</div>
+              <HiOutlineSearch className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
             </div>
+            <span className="text-gray-400 text-sm">
+              {Object.keys(groupByParenthesis(jsonData)).filter(key => reviewedRefs[key]).length} / {jsonData.length} records
+              {getSavedDr && (
+                <span className="ml-2 text-green-600">
+                  • {getSavedDr.length} already saved in database
+                </span>
+              )}
+            </span>
             <button
-              className="ml-4 px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+              className={`absolute right-0 flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition shadow ${jsonData && jsonData.length > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
               onClick={() => setModalOpen(true)}
+              disabled={!jsonData || jsonData.length === 0}
             >
-              Open Modal
+              <HiOutlineEye className="w-5 h-5" /> Start Review & Print
             </button>
           </div>
-          {/* Header Table */}
-          <div className='overflow-y-scroll'>
-            <table className="w-full text-sm text-left text-gray-500 bg-white rounded-t-lg shadow table-fixed" style={{ minWidth: 'max-content' }}>
-              <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+          {/* Data Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-700 bg-white rounded-xl shadow table-fixed">
+              <thead className="sticky top-0 z-10 text-xs text-gray-700 uppercase bg-gray-100">
                 <tr>
-                  <th style={{ width: colWidths[0], minWidth: 40, maxWidth: 80 }} className="px-0 py-3 border-r text-center">#</th>
+                  <th className="px-4 py-3 font-bold">#</th>
                   {Object.keys(jsonData[0]).map((key, idx) => (
-                    <th key={key} style={{ width: colWidths[idx+1], minWidth: 80, maxWidth: 400, position: 'relative' }} className="px-0 py-3 border-r last:border-r-0 break-words whitespace-normal">
-                      <div className="px-4 py-2 break-words whitespace-normal" style={{width: colWidths[idx+1] - 8}}>{key}</div>
-                    </th>
+                    <th key={key} className="px-4 py-3 font-bold">{key}</th>
                   ))}
-                  <th hidden className="px-0 py-3 border-r text-center">Actions</th>
                 </tr>
               </thead>
-            </table>
-          </div>
-          {/* Scrollable Body Table */}
-          <div className="max-h-96 overflow-y-scroll">
-            <table className="w-full text-sm text-left text-gray-500 bg-white rounded-b-lg shadow table-fixed" style={{ minWidth: 'max-content' }}>
               <tbody>
                 {jsonData
                   .filter((row) => {
-                    // Don't filter the totals row
                     if (row.totalG !== undefined && row.totalH !== undefined) return true;
                     if (!searchQuery) return true;
                     const values = Object.values(row).join(' ').toLowerCase();
                     return values.includes(searchQuery.toLowerCase());
                   })
-                  .map((row, idx) => (
-                    <tr key={idx} className="border-t hover:bg-gray-100 transition-colors">
-                      <td style={{ width: colWidths[0], minWidth: 40, maxWidth: 80 }} className="px-4 py-2 border-r font-semibold text-center">{row.totalG !== undefined && row.totalH !== undefined ? '' : idx + 1}</td>
-                      {Object.keys(jsonData[0]).map((key, colIdx) => (
-                        <td key={key} style={{ width: colWidths[colIdx+1], minWidth: 80, maxWidth: 400 }} className="px-4 py-2 break-words whitespace-normal border-r last:border-r-0">{row[key]}</td>
-                      ))}
-                      <td hidden className="px-4 py-2 border-r text-center">
-                        {reviewedRefs[idx] ? (
-                          <span className="text-green-600 font-semibold">Reviewed</span>
-                        ) : (
-                          <button className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500" onClick={() => handleReview(idx)}>Review</button>
-                        )}
-                        <div className="flex gap-4 mt-4 flex-wrap">
-                          {reviewedRefs[idx] ? (
-                            <button
-                              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              onClick={() => setReviewedRefs(prev => ({ ...prev, [idx]: false }))}
-                            >
-                              Mark as Unreviewed
-                            </button>
-                          ) : (
-                            <button
-                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                              onClick={() => handleConfirmReview(idx)}
-                              disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(idx) || '')}
-                            >
-                              Mark as Reviewed
-                            </button>
+                  .map((row, idx) => {
+                    // Check if this row is already saved in Convex
+                    const isSaved = getSavedDr?.some(savedDr => 
+                      savedDr.ref_no === row["REF NO."]
+                    );
+                    
+                    return (
+                      <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${isSaved ? 'border-l-4 border-l-green-500' : ''}`}>
+                        <td className="px-4 py-2 font-semibold text-center">
+                          {row.totalG !== undefined && row.totalH !== undefined ? '' : idx + 1}
+                          {isSaved && (
+                            <div className="text-xs text-green-600 font-medium mt-1">✓ Saved</div>
                           )}
-                          <button
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => handlePrintViewer(idx, 'ttc')}
-                          >
-                            Print TTC Copy
-                          </button>
-                          <button
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => handlePrintViewer(idx, 'customer')}
-                          >
-                            Print Customer's Copy
-                          </button>
-                          <button
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => handlePrintViewer(idx, 'carrier')}
-                          >
-                            Print Carrier Copy
-                          </button>
-                          <button
-                            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                            onClick={() => handlePrintViewer(idx, 'all')}
-                          >
-                            Print All
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        {Object.keys(jsonData[0]).map((key) => (
+                          <td key={key} className="px-4 py-2 break-words whitespace-normal">{row[key]}</td>
+                        ))}
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
+            {jsonData.length === 0 && (
+              <div className="text-center text-gray-400 py-10">No data to display.</div>
+            )}
           </div>
-          {/* Modal for REF NO. list and details */}
-          {modalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-              <div className="bg-white rounded-lg shadow-lg w-full max-w-[96vw] h-[96vh] flex flex-col">
-                <div className="flex justify-between items-center border-b px-8 py-6">
-                  <div className="flex items-center gap-8">
-                    <h2 className="text-2xl font-semibold">Spare Parts Details</h2>
-                    <div className="houseway-bill-no-field flex items-center gap-2">
-                      <label className="block font-medium mb-0">Last Houseway Bill No.:</label>
-                      <input
-                        type="text"
-                        className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="000-0001"
-                        value={editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill}
-                        onChange={e => editingGlobalHousewayBill ? setTempGlobalHousewayBill(e.target.value) : undefined}
-                        maxLength={8}
-                        style={{ width: 120 }}
-                        readOnly={!editingGlobalHousewayBill}
-                      />
-                      {editingGlobalHousewayBill ? (
-                        <>
-                          <button
-                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                            onClick={() => {
-                              setGlobalHousewayBill(tempGlobalHousewayBill);
-                              setEditingGlobalHousewayBill(false);
-                            }}
-                            disabled={!/^\d{3}-\d{4}$/.test(tempGlobalHousewayBill)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
-                            onClick={() => {
-                              setTempGlobalHousewayBill(globalHousewayBill);
-                              setEditingGlobalHousewayBill(false);
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                          onClick={() => {
-                            setTempGlobalHousewayBill(globalHousewayBill);
-                            setEditingGlobalHousewayBill(true);
-                          }}
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {(editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill) && !/^\d{3}-\d{4}$/.test(editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill) && (
-                        <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
-                      )}
-                    </div>
-                  </div>
-                  <button className="text-gray-500 hover:text-gray-700 text-3xl" onClick={() => setModalOpen(false)}>&times;</button>
-                </div>
-                <div className="flex flex-1 overflow-hidden relative">
-                  <div className=" hidden w-1/5 absolute top-0">
+        </div>
+      )}
+      {/* Modal for Review */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 bg-opacity-50 transition-all">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b px-8 py-5 bg-gray-50 sticky top-0 z-10">
+              <div className="flex items-center gap-8">
+                <h2 className="text-2xl font-bold text-gray-900">Spare Parts Details</h2>
+                <div className="hidden houseway-bill-no-field flex items-center gap-2">
+                  <label className="block font-medium mb-0">Last Houseway Bill No.:</label>
+                  <input
+                    type="text"
+                    className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="000-0001"
+                    value={editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill}
+                    onChange={e => editingGlobalHousewayBill ? setTempGlobalHousewayBill(e.target.value) : undefined}
+                    maxLength={8}
+                    style={{ width: 120 }}
+                    readOnly={!editingGlobalHousewayBill}
+                  />
+                  {editingGlobalHousewayBill ? (
+                    <>
+                      <button
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        onClick={() => {
+                          setGlobalHousewayBill(tempGlobalHousewayBill);
+                          setEditingGlobalHousewayBill(false);
+                        }}
+                        disabled={!/^\d{3}-\d{4}$/.test(tempGlobalHousewayBill)}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
+                        onClick={() => {
+                          setTempGlobalHousewayBill(globalHousewayBill);
+                          setEditingGlobalHousewayBill(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded shadow"
-                      onClick={() => setShowLeftPanel((v) => !v)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      onClick={() => {
+                        setTempGlobalHousewayBill(globalHousewayBill);
+                        setEditingGlobalHousewayBill(true);
+                      }}
                     >
-                      {showLeftPanel ? 'Hide List' : 'Show List'}
+                      Edit
+                    </button>
+                  )}
+                  {(editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill) && !/^\d{3}-\d{4}$/.test(editingGlobalHousewayBill ? tempGlobalHousewayBill : globalHousewayBill) && (
+                    <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
+                  )}
+                </div>
+              </div>
+              <button className="text-gray-500 hover:text-gray-700 text-3xl font-bold" onClick={() => setModalOpen(false)}>&times;</button>
+            </div>
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left panel: REF NO. list */}
+              {showLeftPanel && (
+                <aside className="w-1/4 min-w-[380px] max-w-md bg-gray-50 border-r border-gray-200 p-4 flex flex-col gap-2 overflow-y-auto" /* Accessibility: wider for high zoom and single-line DR# */>
+                  <div className="mb-2">
+                    <input
+                      type="text"
+                      placeholder="Search REF NO."
+                      value={leftPanelSearch}
+                      onChange={e => setLeftPanelSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  {/* Filter controls */}
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      className={`px-3 py-1 rounded text-sm font-medium border transition ${refNoFilter === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      onClick={() => setRefNoFilter('all')}
+                    >
+                      All
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded text-sm font-medium border transition ${refNoFilter === 'reviewed' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      onClick={() => setRefNoFilter('reviewed')}
+                    >
+                      Reviewed
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded text-sm font-medium border transition ${refNoFilter === 'unreviewed' ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      onClick={() => setRefNoFilter('unreviewed')}
+                    >
+                      Unreviewed
                     </button>
                   </div>
-                  {/* Left panel: REF NO. list */}
-                  {showLeftPanel && (
-                    <div className="w-1/5 border-r overflow-y-auto p-3 transition-all duration-300">
-                      <div className="relative mb-2">
-                        <input
-                          type="text"
-                          placeholder="Search REF NO."
-                          value={leftPanelSearch}
-                          onChange={e => setLeftPanelSearch(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <h3 className="text-lg font-medium mb-4">REF NO. List</h3>
-                      </div>
-                      <ul>
-                        {(() => {
-                          const groups = groupByParenthesis(jsonData);
-                          const search = leftPanelSearch.trim().toLowerCase();
-                          return Object.entries(groups)
-                            .filter(([key, group]) =>
-                              !search || group.rows.some(r => (r['REF NO.'] || '').toLowerCase().includes(search))
-                            )
-                            .map(([key, group], i) => (
-                              <li
-                                key={key}
-                                className={`ref-li-list cursor-pointer px-4 py-3 rounded mb-2 ${
-                                  reviewedRefs[key]
-                                    ? 'bg-green-200 text-green-900 font-semibold'
-                                    : selectedGroupKey === key
-                                      ? 'bg-blue-100 text-blue-700 font-semibold'
-                                      : 'hover:bg-gray-100'
-                                }`}
-                                onClick={() => {
-                                  setSelectedGroupKey(key);
-                                  setPrintChecks({ ttc: false, customer: false, carrier: false });
-                                }}
+                  {/* <h3 className="text-lg font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                    REF NO. List
+                  </h3> */}
+                  {/* Gamified reviewed progress bar */}
+                  {(() => {
+                    const groups = groupByParenthesis(jsonData);
+                    const total = Object.keys(groups).length;
+                    const reviewed = Object.keys(groups).filter(key => reviewedRefs[key]).length;
+                    const percent = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+                    return (
+                      <div className="w-full mb-3 relative">
+                        <div className="relative h-5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`absolute left-0 top-0 h-5 rounded-full transition-all duration-300 ${percent === 100 ? 'bg-green-500' : percent > 0 ? 'bg-blue-500' : 'bg-gray-300'}`}
+                            style={{ width: `${percent}%` }}
+                          ></div>
+                          <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-gray-800">
+                            {reviewed} / {total} reviewed
+                          </div>
+                          {/* Animated checkmark when full */}
+                          {percent === 100 && (
+                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <svg
+                                className="w-6 h-6 text-white bg-green-500 rounded-full shadow-lg transition-all duration-500 transform scale-0 opacity-0 animate-checkmark"
+                                style={{ animation: 'checkmark-pop 0.5s forwards' }}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"
                               >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                        {/* Keyframes for checkmark pop */}
+                        <style>{`
+                          @keyframes checkmark-pop {
+                            0% { transform: scale(0); opacity: 0; }
+                            60% { transform: scale(1.2); opacity: 1; }
+                            100% { transform: scale(1); opacity: 1; }
+                          }
+                        `}</style>
+                      </div>
+                    );
+                  })()}
+                  <ul className="flex-1 overflow-y-auto pr-1">
+                    {(() => {
+                      const groups = groupByParenthesis(jsonData);
+                      // console.log(groups);
+                      const search = leftPanelSearch.trim().toLowerCase();
+                      return Object.entries(groups)
+                        .filter(([key, group]) => {
+                          if (refNoFilter === 'reviewed') return reviewedRefs[key];
+                          if (refNoFilter === 'unreviewed') return !reviewedRefs[key];
+                          return true;
+                        })
+                        .filter(([key, group]) => {
+                          if (!leftPanelSearch.trim()) return true;
+                          return group.rows.some(r => (r['REF NO.'] || '').toLowerCase().includes(leftPanelSearch.trim().toLowerCase()));
+                        })
+                        .map(([key, group], i) => (
+                          <li
+                            key={key}
+                            className={`cursor-pointer px-4 py-3 rounded-lg transition font-medium mb-3 shadow-sm flex items-center justify-between
+                              border border-gray-200
+                              ${reviewedRefs[key]
+                                ? 'border-l-4 border-l-green-500 bg-green-100 text-green-900'
+                                : selectedGroupKey === key
+                                  ? 'border-l-4 border-l-blue-500 bg-blue-50 text-blue-700'
+                                  : 'hover:bg-blue-100 text-gray-700'}
+                            `}
+                            onClick={() => {
+                              setSelectedGroupKey(key);
+                              setPrintChecks({ ttc: false, customer: false, carrier: false });
+                              if(reviewedRefs[key])
+                                setWaybillDisabled(true)
+                              else
+                                setWaybillDisabled(false)
+                            }}
+                          >
+                            <div className="flex-1">
+                              {(() => {
+                                const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                                return (
+                                  <div className="space-y-1">
+                                    {refs.map((ref, idx) => (
+                                      <div key={idx} className="text-sm leading-tight">
+                                        {ref}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            {selectedGroupKey === key && (
+                              <span className="ml-3 flex items-center">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                              </span>
+                            )}
+                          </li>
+                        ));
+                    })()}
+                  </ul>
+                </aside>
+              )}
+              {/* Right panel: details */}
+              <section className="flex-1 p-8 overflow-y-auto bg-white flex flex-col gap-6">
+                {selectedGroupKey !== null && (() => {
+                  const groups = groupByParenthesis(jsonData);
+                  const group = groups[selectedGroupKey];
+                  if (!group) return <div className="text-gray-400 text-center mt-20">Select a REF NO. to view details</div>;
+                  // Sum declared amount
+                  const sumDeclared = group.rows.reduce((sum, row) => sum + Number(row['DECLARED AMOUNT'].replace(/,/g, '') || 0), 0);
+                  // Use first row for other fields
+                  const firstRow = group.rows[0];
+                  return (
+                    <>
+                      <div className='flex flex-row gap-6'>
+                        <div className="flex flex-wrap gap-4">
+                          <div className="relative border border-gray-300 rounded p-4 flex flex-col gap-2 bg-gray-50 max-w-xs w-full shadow">
+                            <div className="mb-2 font-semibold text-gray-700">Houseway Bill No</div>
+                            <div className='flex flex-col h-full justify-between'>
+                              <input
+                                  type="text"
+                                  className="border border-blue-200 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
+                                  placeholder="000-0000"
+                                  value={getHousewayBill(selectedGroupKey)}
+                                  onChange={e => handleHousewayBillChange(selectedGroupKey, e.target.value)}
+                                  maxLength={8}
+                                  style={{ width: '100%' }}
+                                  disabled={waybillDisabled}
+                                />
+                                {(getHousewayBill(selectedGroupKey) && !/^\d{3}-\d{4}$/.test(getHousewayBill(selectedGroupKey))) && (
+                                  <div className="text-red-500 text-xs">Format must be 000-0000</div>
+                                )}
+                                {reviewedRefs[selectedGroupKey] ? (
+                                  <button
+                                    className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-semibold shadow-sm transition"
+                                    onClick={() => handleConfirmUnreview(selectedGroupKey)}
+                                  >
+                                    Mark as Unreviewed
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold shadow-sm transition"
+                                    onClick={() => handleConfirmReview(selectedGroupKey)}
+                                    disabled={!/^\d{3}-\d{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
+                                  >
+                                    Mark as Reviewed
+                                  </button>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Print options box */}
+                        <div className="border border-gray-300 rounded p-4 flex flex-col gap-2 bg-gray-50 max-w-xs w-full shadow">
+                          <div className="mb-2 font-semibold text-gray-700">Print Options</div>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={printChecks.ttc}
+                              onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
+                            />
+                            TTC Copy
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={printChecks.customer}
+                              onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
+                            />
+                            Customer's Copy
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={printChecks.carrier}
+                              onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
+                            />
+                            Carrier Copy
+                          </label>
+                          <div className="flex gap-3 mt-2">
+                            <button
+                              className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                              onClick={() => handlePrintSelected(selectedGroupKey)}
+                              disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
+                            >
+                              Print
+                            </button>
+                            <button
+                              className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
+                              onClick={() => handlePrintAllBox(selectedGroupKey)}
+                            >
+                              Print All
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                    <div className="space-y-6">
+                      {/* Review/Print Actions */}
+                      <div className="flex flex-wrap gap-4 items-center mb-2">
+                      </div>
+                      {/* Printable section start (do not touch hidden/viewer-content) */}
+                      <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold hidden" id={`viewer-content-${selectedGroupKey}`}>
+                        <div className='font-bold text-[12px]'>
+                          <div className='viewer-header flex'>
+                            <div className='viewer-header-left'>
+                              <div className='absolute top-0 left-0'>
+                                <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
+                              </div>
+                              <div className='flex mt-[75px]'>
+                                <div className='ml-1 w-[84px]'>Email address:</div>
+                                <div className='ml-[36px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
+                              </div>
+                              <div className='flex'>
+                                <div className='ml-1'>Contact Number:</div>
+                                <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
+                              </div>
+                            </div>
+                            <div className='viewer-header-right ml-[40px] mt-[20px]'>
+                              <div className='flex font-serif items-center'>
+                                <div>
+                                  {HOUSEWAY_BILL_NO}
+                                </div>
+                                <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedGroupKey)}</div></div>
+                              <div className="mt-[23px]">
+                                <div className='underline text-red-500'>{EMAILS[1]}</div>
+                                <div className='underline text-red-500'>{EMAILS[2]}</div>
+                                <div className='underline text-red-500'>{EMAILS[3]}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className='viewer-top-body flex mt-[15px]'>
+                            <div className='viewer-top-body-left w-[445px]'>
+                              <div className='flex'>
+                                <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
+                                <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
+                              </div>
+                              <div className='flex mt-5'>
+                                <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
+                                <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
+                                  {sumDeclared.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span></div>
+                              </div>
+                            </div>
+                            <div className='viewer-top-body-right'>
+                              <div className='flex'>
+                                <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
+                                <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['NAME OF DEALER']}</div>
+                              </div>
+                              <div className='flex'>
+                                <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
+                                <div></div>
+                              </div>
+                              <div className='flex'>
+                                <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
+                                <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['ADDRESS']}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className='viewer-bot-body flex justify-between'>
+                            <div className='viewer-bot-body-left flex-1'>
+                              <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
+                              <div style={{backgroundColor: '#fbe4d5'}} className='h-[70px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
                                 {(() => {
                                   const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
                                   const lines = [];
@@ -534,9 +932,9 @@ function SpareParts() {
                                     lines.push(refs.slice(i, i + 3));
                                   }
                                   return (
-                                    <div className='border-b-1'>
+                                    <div className='flex'>
                                       {lines.map((line, idx) => (
-                                        <div key={idx}>
+                                        <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
                                           {line.map((ref, j) => (
                                             <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
                                           ))}
@@ -545,272 +943,108 @@ function SpareParts() {
                                     </div>
                                   );
                                 })()}
-                              </li>
-                            ));
-                        })()}
-                      </ul>
-                    </div>
-                  )}
-                  {/* Right panel: details */}
-                  <div className="flex-1 p-8 overflow-y-auto">
-                    {selectedGroupKey !== null && (() => {
-                      const groups = groupByParenthesis(jsonData);
-                      const group = groups[selectedGroupKey];
-                      if (!group) return <div className="text-gray-400 text-center mt-20">Select a REF NO. to view details</div>;
-                      // Sum declared amount
-                      const sumDeclared = group.rows.reduce((sum, row) => sum + Number(row['DECLARED AMOUNT'].replace(/,/g, '') || 0), 0);
-                      // Use first row for other fields
-                      const firstRow = group.rows[0];
-                      return (
-                        <div className="space-y-4">
-                          <h3 className="text-xl font-semibold mb-6">
-                            Details for REF NO. {(() => {
-                              const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
-                              const lines = [];
-                              for (let i = 0; i < refs.length; i += 3) {
-                                lines.push(refs.slice(i, i + 3));
-                              }
-                              return (
-                                <div className='flex'>
-                                  {lines.map((line, idx) => (
-                                    <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
-                                      {line.map((ref, j) => (
-                                        <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
-                                      ))}
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })()}
-                          </h3>
-                          <div className='flex'>
-                            <div className='mr-6'>
-                              <div className="houseway-bill-no-field mb-4">
-                                <label className="block font-medium mb-1">Houseway Bill No:</label>
-                                <input
-                                  type="text"
-                                  className="border rounded px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="000-0000"
-                                  value={getHousewayBill(selectedGroupKey)}
-                                  onChange={e => handleHousewayBillChange(selectedGroupKey, e.target.value)}
-                                  maxLength={8}
-                                />
-                                {getHousewayBill(selectedGroupKey) && !/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey)) && (
-                                  <div className="text-red-500 text-xs mt-1">Format must be 000-0000</div>
-                                )}
                               </div>
-                              <div className="flex gap-4 mt-4 flex-wrap">
-                                {reviewedRefs[selectedGroupKey] ? (
-                                  <button
-                                    className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                                    onClick={() => setReviewedRefs(prev => ({ ...prev, [selectedGroupKey]: false }))}
-                                  >
-                                    Mark as Unreviewed
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                    onClick={() => handleConfirmReview(selectedGroupKey)}
-                                    disabled={!/^[\d]{3}-[\d]{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
-                                  >
-                                    Mark as Reviewed
-                                  </button>
-                                )}
-                              </div>
+                              <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
+                              <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
+                              <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
+                              <div className='border-r-1 pb-5 border-b-1'>{RECEIVED_BY}</div>
+                              <div className='border-r-1 ml-8'>{CONSIGNEE_PRINTED}</div>
                             </div>
-                            {/* Print options box */}
-                            <div className="border border-gray-300 rounded p-4 mb-2 w-full max-w-xs" style={{padding:10}}>
-                              <div className="mb-3 font-semibold">Print Options</div>
-                              <div className="flex flex-col gap-2 mb-4">
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={printChecks.ttc}
-                                    onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
-                                  />
-                                  TTC Copy
-                                </label>
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={printChecks.customer}
-                                    onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
-                                  />
-                                  Customer's Copy
-                                </label>
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={printChecks.carrier}
-                                    onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
-                                  />
-                                  Carrier Copy
-                                </label>
+                            <div className='viewer-bot-body-right flex-1'>
+                              <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>{NUMBER_TYPE_PACKAGE}</div>
+                              <div className='h-[70px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
+                                {(() => {
+                                  const boxVal = group.rows.find(r => r['No. Of Boxes'] && r['No. Of Boxes'].trim() !== '')?.['No. Of Boxes'] || '';
+                                  const bundleVal = group.rows.find(r => r['NO. OF BUNDLES'] && r['NO. OF BUNDLES'].trim() !== '')?.['NO. OF BUNDLES'] || '';
+                                  const numBox = parseInt(boxVal, 10);
+                                  const numBundle = parseInt(bundleVal, 10);
+                                  let result = '';
+                                  if (boxVal) {
+                                    result += `${numBox} ${numBox === 1 ? 'BOX' : 'BOXES'}`;
+                                  }
+                                  if (bundleVal) {
+                                    if (result) result += ' & ';
+                                    result += `${numBundle} ${numBundle === 1 ? 'BUNDLE' : 'BUNDLES'}`;
+                                  }
+                                  return result;
+                                })()}
                               </div>
-                              <div className="flex gap-3 mt-2">
-                                <button
-                                  className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                                  onClick={() => handlePrintSelected(selectedGroupKey)}
-                                  disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
-                                >
-                                  Print
-                                </button>
-                                <button
-                                  className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
-                                  onClick={() => handlePrintAllBox(selectedGroupKey)}
-                                >
-                                  Print All
-                                </button>
-                              </div>
+                              <div className='pt-[40px] pl-1'>{ERVY_LOGISTICS}</div>
+                              <div className='pb-[18px] pl-1'>{AUTHORIZED_REPRESENTATIVE}</div>
+                              <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
+                              <div className='flex pl-1'>{TRUCK_PLATE_NO} <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
                             </div>
                           </div>
-                          <div className="relative mt-8 border rounded-lg shadow p-6 bg-gray-50 font-bold" id={`viewer-content-${selectedGroupKey}`}>
-                            <div className='font-bold text-[12px]'>
-                              <div className='viewer-header flex'>
-                                <div className='viewer-header-left'>
-                                  <div className='absolute top-0 left-0'>
-                                    <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
-                                  </div>
-                                  <div className='flex mt-[75px]'>
-                                    <div className='ml-1 w-[84px]'>Email address:</div>
-                                    <div className='ml-[36px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
-                                  </div>
-                                  <div className='flex'>
-                                    <div className='ml-1'>Contact Number:</div>
-                                    <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
-                                  </div>
-                                </div>
-                                <div className='viewer-header-right ml-[40px] mt-[20px]'>
-                                  <div className='flex font-serif items-center'>
-                                    <div>
-                                      {HOUSEWAY_BILL_NO}
-                                    </div>
-                                    <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedGroupKey)}</div></div>
-                                  <div className="mt-[23px]">
-                                    <div className='underline text-red-500'>{EMAILS[1]}</div>
-                                    <div className='underline text-red-500'>{EMAILS[2]}</div>
-                                    <div className='underline text-red-500'>{EMAILS[3]}</div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className='viewer-top-body flex mt-[15px]'>
-                                <div className='viewer-top-body-left w-[445px]'>
-                                  <div className='flex'>
-                                    <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
-                                    <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
-                                  </div>
-                                  <div className='flex mt-5'>
-                                    <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
-                                    <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
-                                      {sumDeclared.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span></div>
-                                  </div>
-                                </div>
-                                <div className='viewer-top-body-right'>
-                                  <div className='flex'>
-                                    <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
-                                    <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['NAME OF DEALER']}</div>
-                                  </div>
-                                  <div className='flex'>
-                                    <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
-                                    <div></div>
-                                  </div>
-                                  <div className='flex'>
-                                    <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
-                                    <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['ADDRESS']}</div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className='viewer-bot-body flex justify-between'>
-                                <div className='viewer-bot-body-left flex-1'>
-                                  <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>{DOCUMENT_NUMBER}</div>
-                                  <div style={{backgroundColor: '#fbe4d5'}} className='h-[70px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
-                                    {(() => {
-                                      const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
-                                      const lines = [];
-                                      for (let i = 0; i < refs.length; i += 3) {
-                                        lines.push(refs.slice(i, i + 3));
-                                      }
-                                      return (
-                                        <div className='flex'>
-                                          {lines.map((line, idx) => (
-                                            <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
-                                              {line.map((ref, j) => (
-                                                <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
-                                              ))}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-                                  <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
-                                  <div className='ml-1 flex h-[54px] border-r-1'>{REMARKS}</div>
-                                  <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>{SHIPPER_PRINTED}</div>
-                                  <div className='border-r-1 pb-5 border-b-1'>{RECEIVED_BY}</div>
-                                  <div className='border-r-1 ml-8'>{CONSIGNEE_PRINTED}</div>
-                                </div>
-                                <div className='viewer-bot-body-right flex-1'>
-                                  <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>{NUMBER_TYPE_PACKAGE}</div>
-                                  <div className='h-[70px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
-                                    {(() => {
-                                      const boxVal = group.rows.find(r => r['No. Of Boxes'] && r['No. Of Boxes'].trim() !== '')?.['No. Of Boxes'] || '';
-                                      const bundleVal = group.rows.find(r => r['NO. OF BUNDLES'] && r['NO. OF BUNDLES'].trim() !== '')?.['NO. OF BUNDLES'] || '';
-                                      const numBox = parseInt(boxVal, 10);
-                                      const numBundle = parseInt(bundleVal, 10);
-                                      let result = '';
-                                      if (boxVal) {
-                                        result += `${numBox} ${numBox === 1 ? 'BOX' : 'BOXES'}`;
-                                      }
-                                      if (bundleVal) {
-                                        if (result) result += ' & ';
-                                        result += `${numBundle} ${numBundle === 1 ? 'BUNDLE' : 'BUNDLES'}`;
-                                      }
-                                      return result;
-                                    })()}
-                                  </div>
-                                  <div className='pt-[40px] pl-1'>{ERVY_LOGISTICS}</div>
-                                  <div className='pb-[18px] pl-1'>{AUTHORIZED_REPRESENTATIVE}</div>
-                                  <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
-                                  <div className='flex pl-1'>{TRUCK_PLATE_NO} <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
-                                </div>
-                              </div>
-                              
-                              <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
-                                This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
-                                </div>
-                            </div>
-                          </div>{/* Accordion for details table */}
-                          <div className="mt-4">
-                            <button
-                              className="w-full flex items-center justify-between px-4 py-3 bg-gray-200 hover:bg-gray-300 rounded-t-lg focus:outline-none"
-                              onClick={() => setDetailsAccordionOpen(v => !v)}
-                              aria-expanded={detailsAccordionOpen}
-                            >
-                              <span className="font-semibold text-lg">Details Table</span>
-                              <span className="ml-2">{detailsAccordionOpen ? '▲' : '▼'}</span>
-                            </button>
-                            {!detailsAccordionOpen && (
-                              <table className="w-full text-base border rounded-b-lg shadow bg-white">
-                                <tbody>
-                                  {Object.entries(firstRow).map(([key, value]) => (
-                                    <tr key={key}>
-                                      <td className="font-medium pr-6 py-2 text-gray-600 align-top whitespace-nowrap">{key}</td>
-                                      <td className="py-2 break-words whitespace-normal">{value}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
+                          <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
+                            This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
                           </div>
                         </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
+                      </div>
+                      {/* Printable section end */}
+                      {/* Details Table Accordion */}
+                      <div className="mt-4">
+                        <button
+                          className="w-full flex items-center justify-between px-4 py-3 bg-gray-200 hover:bg-gray-300 rounded-t-lg focus:outline-none"
+                          onClick={() => setDetailsAccordionOpen(v => !v)}
+                          aria-expanded={detailsAccordionOpen}
+                        >
+                          <span className="font-semibold text-lg">Details Table</span>
+                          <span className="ml-2">{detailsAccordionOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {detailsAccordionOpen && (
+                          <div className="bg-white rounded-b-2xl shadow-md border border-gray-200">
+                            {/* Details Table */}
+                            <div className="px-8 py-6 bg-gray-50 rounded-b-2xl shadow border border-gray-200">
+                              <div className="space-y-4">
+                                {group.rows.map((row, rowIndex) => (
+                                  <div key={rowIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                    <div className="bg-blue-100 px-4 py-2 border-b border-gray-200">
+                                      <h4 className="font-semibold text-blue-800">DR #{rowIndex + 1}</h4>
+                                    </div>
+                                    <div className="p-4">
+                                      <table className="w-full border-separate border-spacing-y-1">
+                                        <tbody>
+                                          {Object.entries(row).map(([key, value], idx, arr) => (
+                                            <tr
+                                              key={key}
+                                              className={
+                                                (idx % 2 === 0 ? "bg-gray-50" : "bg-white") +
+                                                " transition-colors hover:bg-blue-50"
+                                              }
+                                            >
+                                              <td className={
+                                                "font-semibold text-gray-700 text-sm pr-4 py-2 text-right align-top w-48" +
+                                                (idx === 0 ? " rounded-tl-lg" : "") +
+                                                (idx === arr.length - 1 ? " rounded-bl-lg" : "")
+                                              }>
+                                                {key}
+                                              </td>
+                                              <td className={
+                                                "text-gray-900 text-sm pl-3 py-2 align-top" +
+                                                (idx === 0 ? " rounded-tr-lg" : "") +
+                                                (idx === arr.length - 1 ? " rounded-br-lg" : "")
+                                              }>
+                                                {value}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    </>
+                  );
+                })()}
+              </section>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
