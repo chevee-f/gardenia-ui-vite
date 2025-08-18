@@ -444,7 +444,7 @@ function SpareParts() {
           )}
           <button
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
-            onClick={() => window.location.href = '/spare-parts/billing'}
+            onClick={() => window.location.href = '/billing'}
           >
             Billing
           </button>

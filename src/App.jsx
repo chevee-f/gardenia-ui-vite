@@ -25,7 +25,7 @@ function App() {
               
               <Route path='/gardenia/new' element={<AddTicketPage />} />
               <Route path='/spare-parts' element={<SpareParts />} />
-              <Route path='/spare-parts/billing' element={<Billing />} />
+              <Route path='/billing' element={<Billing />} />
               {/* other routes */}
             </Routes>
           </main>
