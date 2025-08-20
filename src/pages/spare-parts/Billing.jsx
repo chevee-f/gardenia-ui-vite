@@ -549,59 +549,59 @@ function formatDateShort(dateStr) {
         <div style={{ display: "none" }}>
         {/* <div> */}
           <div ref={printRef}>
-            <div style={{ fontFamily: 'Arial Narrow', fontSize: '12px', fontWeight: 'bold' }}>
+            <div style={{ fontFamily: 'Arial Narrow', fontSize: '14px', fontWeight: 'bold' }}>
               TRIMOTORS TECHNOLOGY CORP.
             </div>
-            <div style={{ fontFamily: 'Arial', fontSize: '6px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
-            <div style={{ fontFamily: 'Arial', fontSize: '6px', fontWeight: 'bold', marginBottom: '80px'}}>MUNTINLUPA MANILA</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '80px'}}>MUNTINLUPA MANILA</div>
             <table>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold' }}>Waybill No</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold' }}>WB Date</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold' }}>Destination</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold' }}>D.R No.</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold' }}>DR Date</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold', width: '40px' }}>DV</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold', width: '40px' }}>Charges</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Waybill No</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>WB Date</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Destination</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>D.R No.</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>DR Date</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>DV</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>CHARGES</th>
                 </tr>
               </thead>
               <tbody>
                 {billingStatement.map((item) => (
                   <tr key={item.drId}>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{item.waybillNo}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{formatDateShort(item.wbDate) || ""}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{item.destination}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{item.drNo}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "right" }}>{item.dv.toLocaleString()}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '9px', textAlign: "right" }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.waybillNo}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.wbDate) || ""}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.destination}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.drNo}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString()}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
                 <tr>
-                  <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '9px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '11px', fontWeight: 'bold' }}>{totalDV.toLocaleString()}</td>
+                  <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '13px', fontWeight: 'bold' }}>{totalDV.toLocaleString()}</td>
                   <td></td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '11px', fontWeight: 'bold' }}>{totalCharges.toLocaleString()}</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '13px', fontWeight: 'bold' }}>{totalCharges.toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
             <div style={{ position: 'absolute', bottom: '20px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '200px' }}>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '8px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>ERVY YPARRAGUIRRE</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '8px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>ERVY YPARRAGUIRRE</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
                 <div style={{ position: 'absolute', right: '0'}}>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', marginBottom: '20px' }}>RECEIVED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>RECEIVED BY:</div>
                   <div>_________________________</div>
                 </div>
               </div>
