@@ -122,6 +122,7 @@ function SpareParts() {
   const getSavedDr = useQuery(api.dr.getSavedDr, jsonData ? {
     data: jsonData.map(item => ({
       ref_no: item["REF NO."] || "",
+      waybill_no: item["waybill_no"] || ""
       // group_ref_no: "", // You need to decide where this comes from
       // waybill_no: "" // This will be empty initially since waybill is assigned during review
     }))
@@ -132,6 +133,7 @@ function SpareParts() {
     if (getSavedDr && jsonData && jsonData.length > 0) {
       const groups = groupByParenthesis(jsonData);
       
+      console.log('getSavedDr:', getSavedDr);
       setReviewedRefs(prev => {
         const updated = { ...prev };
         
@@ -141,7 +143,7 @@ function SpareParts() {
           
           // Check if any row in this group has a matching saved DR
           const hasSavedDr = groupRows.some(row => 
-            getSavedDr.some(savedDr => savedDr.ref_no === row["REF NO."])
+            getSavedDr.some(savedDr => savedDr.ref_no === row["REF NO."] && savedDr.waybill_no !== "")
           );
           
           if (hasSavedDr) {
@@ -433,6 +435,63 @@ function SpareParts() {
     return groups;
   }
 
+  const syncFileInputRef = useRef();
+
+  // New: Sync function
+  const handleSyncFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Read file as ArrayBuffer
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rowsArr = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+    if (rowsArr.length < 8) {
+      alert('Excel file does not have enough rows.');
+      return;
+    }
+
+    const keys = rowsArr[6];
+    const values = rowsArr.slice(7);
+    const json = [];
+    for (const row of values) {
+      const isEnd = row.slice(0, 6).every(cell => !cell || cell.toString().trim() === '');
+      if (isEnd) break;
+      const obj = {};
+      keys.forEach((key, i) => {
+        obj[key?.toString().trim() || `col${i}`] = row[i]?.toString().trim() || '';
+      });
+      json.push(obj);
+    }
+
+    // Post all data to DR in Convex
+    const formattedData = json.map(item => ({
+      ref_no: item["REF NO."] || "",
+      group_ref_no: "", // You need to decide where this comes from
+      waybill_no: item["waybill_no"] || "",
+      drsi_date: item["DR/SI DATE"] || null,
+      name_of_dealer: item["NAME OF DEALER"] || null,
+      contact_person: item["Contact Person"] || null,
+      contact_no: item["Contact No."] || null,
+      address: item["ADDRESS"] || null,
+      declared_amount: item["DECLARED AMOUNT"] ? String(item["DECLARED AMOUNT"]) : null,
+      no_of_boxes: item["No. Of Boxes"] ? parseFloat(item["No. Of Boxes"]) : null,
+      no_of_bundles: item["NO. OF BUNDLES"] ? parseFloat(item["NO. OF BUNDLES"]) : null,
+      dispatched_by: item["DISPATCHED BY:"] || null
+    }));
+
+    try {
+      await saveDr({ data: formattedData });
+      alert('Sync successful!');
+    } catch (err) {
+      alert('Sync failed!');
+      console.error(err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sticky Header Bar */}
@@ -448,6 +507,20 @@ function SpareParts() {
           >
             Billing
           </button>
+
+          <button
+            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 text-sm font-medium"
+            onClick={() => syncFileInputRef.current && syncFileInputRef.current.click()}
+          >
+            Sync
+          </button>
+          <input
+            ref={syncFileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleSyncFile}
+            className="hidden"
+          />
         </div>
         <div className="flex items-center gap-2">
           <button

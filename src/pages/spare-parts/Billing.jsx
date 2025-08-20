@@ -275,7 +275,7 @@ function formatDateShort(dateStr) {
                 <th className="px-4 py-3">Waybill</th>
                 <th className="px-4 py-3">Destination</th>
                 <th className="px-4 py-3">D.R No.</th>
-                <th className="px-4 py-3">DV</th>
+                {/* <th className="px-4 py-3">DV</th> */}
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -297,7 +297,7 @@ function formatDateShort(dateStr) {
                       <td className="px-4 py-3 text-sm">{dr.waybill_no}</td>
                       <td className="px-4 py-3 text-sm">{dr.name_of_dealer}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{getDRNumber(dr.ref_no)}</td>
-                      <td className="px-4 py-3 text-sm">₱{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td>
+                      {/* <td className="px-4 py-3 text-sm">₱{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td> */}
                       <td className="px-4 py-3">
                         <button 
                           onClick={() => addToBillingStatement(dr)}
@@ -341,26 +341,28 @@ function formatDateShort(dateStr) {
 
       {/* Billing Statement Panel */}
       <div className="w-full bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col">
-        <h1 className="text-2xl font-bold mb-6 text-gray-900">
-        <span>
-      Billing Statement
-      <span className="ml-3 text-sm text-gray-500">
-        ({incompleteItems} / {totalItems} items left)
-      </span>
-    </span>
-        </h1>
-        
-        <button
-          onClick={handlePrint}
-          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-        >
-          Print
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            <span>
+              Billing Statement
+              <span className="ml-3 text-sm text-gray-500">
+                ({incompleteItems} items left)
+              </span>
+            </span>
+          </h1>
+
+          <button
+            onClick={handlePrint}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            Print
+          </button>
+        </div>
 
         {/* Scrollable table */}
   <div className="overflow-y-auto max-h-[400px] border border-gray-200 rounded-lg">
     <table className="w-full text-sm text-left text-gray-700 bg-white">
-      <thead className="text-xs text-gray-700 bg-gray-100 sticky top-0">
+      <thead className="text-xs text-gray-700 bg-gray-100 sticky top-0 z-1">
         <tr>
           <th className="px-3 py-3">Waybill No</th>
           <th className="px-3 py-3">WB Date</th>
@@ -424,7 +426,7 @@ function formatDateShort(dateStr) {
                   onChange={e => updateBillingItem(item.drId, 'wbDate', e.target.value)}
                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                 />
-                <div className="text-xs text-gray-500 absolute top-[22px] left-[19px] width-[90px]">
+                <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
                   {formatDateShort(item.wbDate)}
                 </div>
               </td>
@@ -437,7 +439,7 @@ function formatDateShort(dateStr) {
                   onChange={e => updateBillingItem(item.drId, 'drDate', e.target.value)}
                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                 />
-                <div className="text-xs text-gray-500 absolute top-[22px] left-[19px] width-[90px]">
+                <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
                   {formatDateShort(item.drDate)}
                 </div>
               </td>
