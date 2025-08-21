@@ -1,17 +1,18 @@
-import { Link, NavLink } from 'react-router-dom';
-import logo from "../../assets/Ercy Group Logo.jpg"
+import { NavLink } from 'react-router-dom';
+import logo from "../../assets/Ercy Group Logo.jpg";
 
-const Sidebar = () => {
+const TopNav = () => {
   return (
-    <aside className="w-64 h-screen bg-white border-r shadow-sm">
-      <div className="p-4 font-bold text-lg">
-        <img className="w-[200px] pt-[20px] pb-[20px]" src={logo} />
+    <nav className="w-full bg-white border-b shadow-sm flex items-center px-8 py-2 justify-between sticky top-0 z-50">
+      <div className="flex items-center gap-4">
+        <img className="h-12 w-auto" src={logo} alt="Logo" />
+        <span className="font-bold text-lg text-gray-800">Ervy Brokerage</span>
       </div>
-      <nav className="flex flex-col gap-1 px-4">
+      <div className="flex gap-2">
         <NavLink
           to="/gardenia"
           className={({ isActive }) =>
-            `py-2 px-3 rounded-md text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-200 font-semibold' : ''}`
+            `py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition ${isActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'}`
           }
         >
           Gardenia
@@ -19,22 +20,22 @@ const Sidebar = () => {
         <NavLink
           to="/spare-parts"
           className={({ isActive }) =>
-            `py-2 px-3 rounded-md text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-200 font-semibold' : ''}`
+            `py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition ${isActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'}`
           }
         >
           Spare Parts
         </NavLink>
         <NavLink
-          to="/tickets"
+          to="/billing"
           className={({ isActive }) =>
-            `py-2 px-3 rounded-md text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-200 font-semibold' : ''}`
+            `py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition ${isActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'}`
           }
         >
-          Cykris
+          Billing
         </NavLink>
-      </nav>
-    </aside>
+      </div>
+    </nav>
   );
 };
 
-export default Sidebar;
+export default TopNav;

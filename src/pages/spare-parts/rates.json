@@ -1,0 +1,26 @@
+[
+  {
+    "region": "Region 9",
+    "address": "IPIL",
+    "rate": 4.42,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 11",
+    "address": "MATI",
+    "rate": 3.50,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 11",
+    "address": "AGDAO",
+    "rate": 2.00,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 11",
+    "address": "BANGKAL",
+    "rate": 2.00,
+    "lead_time_days": 1
+  }
+]
