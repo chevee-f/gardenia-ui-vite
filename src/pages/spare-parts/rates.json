@@ -222,9 +222,27 @@
     "lead_time_days": 5
   },
   {
+    "region": "Region 10",
+    "address": "MISAMIS OCCIDENTAL",
+    "rate": 4.42,
+    "lead_time_days": 5
+  },
+  {
     "region": "Region 12",
-    "address": "COTABATO",
+    "address": "SULTAN KUDARAT",
     "rate": 4.00,
     "lead_time_days": 5
+  },
+  {
+    "region": "Region 10",
+    "address": "BUKIDNON",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 13",
+    "address": "ILIGAN",
+    "rate": 4.42,
+    "lead_time_days": 3
   }
 ]
