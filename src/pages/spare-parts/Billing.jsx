@@ -272,15 +272,37 @@ export default function Billing() {
   };
 
   function getDuplicateWaybills(statement) {
-  const counts = {};
-  statement.forEach(item => {
-    if (!item.waybillNo) return;
-    counts[item.waybillNo] = (counts[item.waybillNo] || 0) + 1;
-  });
-  return Object.keys(counts).filter(k => counts[k] > 1);
-}
-const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), [billingStatement]);
+    const counts = {};
+    statement.forEach(item => {
+      if (!item.waybillNo) return;
+      counts[item.waybillNo] = (counts[item.waybillNo] || 0) + 1;
+    });
+    return Object.keys(counts).filter(k => counts[k] > 1);
+  }
+  const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), [billingStatement]);
 
+  const [editPercentPopup, setEditPercentPopup] = useState({ open: false, drId: null, value: "" });
+
+  const openPercentEdit = (drId, currentValue) => {
+    setEditPercentPopup({ open: true, drId, value: currentValue });
+  };
+
+  const closePercentEdit = () => {
+    setEditPercentPopup({ open: false, drId: null, value: "" });
+  };
+
+  const savePercentEdit = () => {
+    // Ensure value is a number and update charges as well
+    const percent = parseFloat(editPercentPopup.value) || 0;
+    setBillingStatement(prev =>
+      prev.map(item =>
+        item.drId === editPercentPopup.drId
+          ? { ...item, percent, charges: item.dv * (percent / 100) }
+          : item
+      )
+    );
+    closePercentEdit();
+  };
   return (
     <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
       {/* Billing Records Panel */}
@@ -335,8 +357,8 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
                           onClick={() => addToBillingStatement(dr)}
                           disabled={isDRAdded(dr._id)}
                           className={`px-3 py-1 text-xs rounded font-medium transition flex items-center justify-center ${isDRAdded(dr._id)
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                           title={isDRAdded(dr._id) ? 'Added' : 'Add'}
                         >
@@ -476,12 +498,12 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
                       </div>
                     </td>
                     <td
-  className="px-3 py-3 text-sm cursor-pointer hover:underline"
-  onClick={() => openDestinationEdit(item.drId, item.destination)}
-  title="Click to edit destination"
->
-  {item.destination || <span className="text-gray-400 italic">Set Destination</span>}
-</td>
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openDestinationEdit(item.drId, item.destination)}
+                      title="Click to edit destination"
+                    >
+                      {item.destination || <span className="text-gray-400 italic">Set Destination</span>}
+                    </td>
                     <td className="px-3 py-3 text-sm font-medium">{item.drNo}</td>
                     <td className="px-3 py-3 relative">
                       <input
@@ -495,7 +517,13 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
                       </div>
                     </td>
                     <td className="px-3 py-3 text-sm">{item.dv.toLocaleString()}</td>
-                    <td className="px-3 py-3 text-sm">{item.percent}%</td>
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openPercentEdit(item.drId, item.percent)}
+                      title="Click to edit percent"
+                    >
+                      {Number(item.percent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
                     <td className="px-3 py-3 text-sm font-medium">
                       {item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
@@ -507,8 +535,8 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
                       >
                         {/* Trash icon */}
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-7 0h10" />
-</svg>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-7 0h10" />
+                        </svg>
                       </button>
                     </td>
                   </tr>
@@ -540,28 +568,61 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
             </div>
           </div>
         )}
-
+        <Modal open={editPercentPopup.open} onClose={closePercentEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Percent</h2>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={editPercentPopup.value}
+            onChange={e => setEditPercentPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter percent"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                savePercentEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closePercentEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={savePercentEdit}
+            >Save</button>
+          </div>
+        </Modal>
         <Modal open={editDestinationPopup.open} onClose={closeDestinationEdit}>
-  <h2 className="text-lg font-bold mb-4">Edit Destination</h2>
-  <input
-    type="text"
-    value={editDestinationPopup.value}
-    onChange={e => setEditDestinationPopup(p => ({ ...p, value: e.target.value }))}
-    placeholder="Enter destination"
-    className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
-    autoFocus
-  />
-  <div className="flex justify-end gap-2">
-    <button
-      className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-      onClick={closeDestinationEdit}
-    >Cancel</button>
-    <button
-      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      onClick={saveDestinationEdit}
-    >Save</button>
-  </div>
-</Modal>
+          <h2 className="text-lg font-bold mb-4">Edit Destination</h2>
+          <input
+            type="text"
+            value={editDestinationPopup.value}
+            onChange={e => setEditDestinationPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter destination"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDestinationEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDestinationEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDestinationEdit}
+            >Save</button>
+          </div>
+        </Modal>
         <Modal open={sortModalOpen} onClose={() => setSortModalOpen(false)}>
           <h2 className="text-lg font-bold mb-4">Sort Destinations</h2>
           <ul className="mb-4">
@@ -609,6 +670,11 @@ const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), 
             className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
             maxLength={8}
             autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveWaybillEdit();
+              }
+            }}
           />
           <div className="flex justify-end gap-2">
             <button
