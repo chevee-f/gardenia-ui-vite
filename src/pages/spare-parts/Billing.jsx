@@ -221,12 +221,12 @@ export default function Billing() {
           </style>
         </head>
         <body>
-            <div style="position: absolute; top: 186px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
-            <div style="position: absolute; top: 186px; left: 0; background-color: blue; width: 10px; height: 10px;"></div>
+            <div style="position: absolute; top: 195px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
+            <div style="position: absolute; top: 195px; left: 0; background-color: blue; width: 10px; height: 10px;"></div>
 
             
-            <div style="position: absolute; top: 1086px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
-            <div style="position: absolute; top: 1220px; left: 0; background-color: blue; width: 200px; height: 2px;"></div>
+            <div style="position: absolute; top: 886px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
+            <div style="position: absolute; top: 1020px; left: 0; background-color: blue; width: 200px; height: 2px;"></div>
           ${printContent}
         </body>
       </html>
@@ -701,7 +701,7 @@ export default function Billing() {
               TRIMOTORS TECHNOLOGY CORP.
             </div>
             <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
-            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '145px' }}>MUNTINLUPA MANILA</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '155px' }}>MUNTINLUPA MANILA</div>
             {/* rulers*/}
             {/* <div style={{ position: 'absolute', top: '195px', left: '525px', backgroundColor: 'red', width: '10px', height: '10px' }}>[]</div>
             <div style={{ position: 'absolute', top: '112px', left: 0, backgroundColor: 'green', width: '10px', height: '10px' }}></div> */}
@@ -755,18 +755,18 @@ export default function Billing() {
                 <tr>
                   <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
                   <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
-                    3,991,436.29
-                    {/* {totalDV.toLocaleString()} */}
+                    {/* 3,991,436.29 */}
+                    {totalDV.toLocaleString()}
                   </td>
                   <td></td>
                   <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
-                    31,249.181
-                    {/* {totalCharges.toLocaleString()} */}
+                    {/* 31,249.181 */}
+                    {totalCharges.toLocaleString()}
                   </td>
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', left: '30px', bottom: '70px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '30px', bottom: '20px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '230px' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
