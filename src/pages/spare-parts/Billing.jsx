@@ -701,7 +701,7 @@ export default function Billing() {
               TRIMOTORS TECHNOLOGY CORP.
             </div>
             <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
-            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '155px' }}>MUNTINLUPA MANILA</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '160px' }}>MUNTINLUPA MANILA</div>
             {/* rulers*/}
             {/* <div style={{ position: 'absolute', top: '195px', left: '525px', backgroundColor: 'red', width: '10px', height: '10px' }}>[]</div>
             <div style={{ position: 'absolute', top: '112px', left: 0, backgroundColor: 'green', width: '10px', height: '10px' }}></div> */}
@@ -766,7 +766,7 @@ export default function Billing() {
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', left: '30px', bottom: '20px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '30px', bottom: '40px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '230px' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
