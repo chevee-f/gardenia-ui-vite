@@ -778,7 +778,7 @@ export default function Billing() {
                   <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
-                <div style={{ position: 'absolute', right: '0' }}>
+                <div style={{ position: 'absolute', right: '55px' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
                   <div>_________________________</div>
                 </div>
