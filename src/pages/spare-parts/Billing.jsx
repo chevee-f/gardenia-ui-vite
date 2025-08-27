@@ -221,12 +221,14 @@ export default function Billing() {
           </style>
         </head>
         <body>
+          <div style="display: none">
             <div style="position: absolute; top: 195px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
             <div style="position: absolute; top: 195px; left: 0; background-color: blue; width: 10px; height: 10px;"></div>
 
             
             <div style="position: absolute; top: 886px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
             <div style="position: absolute; top: 1035px; left: 0; background-color: blue; width: 700px; height: 1px;"></div>
+          </div>
           ${printContent}
         </body>
       </html>
