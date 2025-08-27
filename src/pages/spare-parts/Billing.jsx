@@ -221,6 +221,12 @@ export default function Billing() {
           </style>
         </head>
         <body>
+            <div style="position: absolute; top: 186px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
+            <div style="position: absolute; top: 186px; left: 0; background-color: blue; width: 10px; height: 10px;"></div>
+
+            
+            <div style="position: absolute; top: 1086px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
+            <div style="position: absolute; top: 1220px; left: 0; background-color: blue; width: 200px; height: 2px;"></div>
           ${printContent}
         </body>
       </html>
@@ -695,7 +701,11 @@ export default function Billing() {
               TRIMOTORS TECHNOLOGY CORP.
             </div>
             <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
-            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '80px' }}>MUNTINLUPA MANILA</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '145px' }}>MUNTINLUPA MANILA</div>
+            {/* rulers*/}
+            {/* <div style={{ position: 'absolute', top: '195px', left: '525px', backgroundColor: 'red', width: '10px', height: '10px' }}>[]</div>
+            <div style={{ position: 'absolute', top: '112px', left: 0, backgroundColor: 'green', width: '10px', height: '10px' }}></div> */}
+            {/* rulers*/}
             <table>
               <thead>
                 <tr>
@@ -704,7 +714,7 @@ export default function Billing() {
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Destination</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>D.R No.</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>DR Date</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '80px' }}>DV</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '100px' }}>DV</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>CHARGES</th>
                 </tr>
@@ -744,22 +754,28 @@ export default function Billing() {
                 ))}
                 <tr>
                   <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>{totalDV.toLocaleString()}</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                    3,991,436.29
+                    {/* {totalDV.toLocaleString()} */}
+                  </td>
                   <td></td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>{totalCharges.toLocaleString()}</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                    31,249.181
+                    {/* {totalCharges.toLocaleString()} */}
+                  </td>
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', bottom: '20px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '30px', bottom: '70px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
-                <div style={{ width: '200px' }}>
+                <div style={{ width: '230px' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
                 </div>
                 <div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>ERVY YPARRAGUIRRE</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
                 <div style={{ position: 'absolute', right: '0' }}>
