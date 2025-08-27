@@ -766,17 +766,17 @@ export default function Billing() {
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', left: '30px', bottom: '40px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '40px', bottom: '50px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '230px' }}>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
                 <div style={{ position: 'absolute', right: '0' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
