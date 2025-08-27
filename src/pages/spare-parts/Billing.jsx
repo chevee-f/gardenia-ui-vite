@@ -226,7 +226,7 @@ export default function Billing() {
 
             
             <div style="position: absolute; top: 886px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
-            <div style="position: absolute; top: 1020px; left: 0; background-color: blue; width: 200px; height: 2px;"></div>
+            <div style="position: absolute; top: 1035px; left: 0; background-color: blue; width: 700px; height: 1px;"></div>
           ${printContent}
         </body>
       </html>
@@ -766,7 +766,7 @@ export default function Billing() {
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', left: '40px', bottom: '50px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '40px', bottom: '38px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '230px' }}>
                   <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
@@ -775,7 +775,7 @@ export default function Billing() {
                 </div>
                 <div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
                   <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
                 <div style={{ position: 'absolute', right: '0' }}>
