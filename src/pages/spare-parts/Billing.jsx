@@ -333,8 +333,9 @@ export default function Billing() {
             <div style="position: absolute;top: 322px;left: 265px;background-color: green;width: 120px;height: 2px;"></div>
             <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
             <div style="position: absolute; top: 960px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
+            <div style="position: absolute;top: 170px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
           </div>
-          <div style="display: none">
+          <div style="display: anone">
             {/* Full A4 Grid - Vertical lines (full height) */}
             <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
