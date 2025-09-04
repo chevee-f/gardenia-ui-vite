@@ -18,6 +18,7 @@ function Modal({ open, onClose, children }) {
 export default function Billing() {
   const allDr = useQuery(api.dr.getAllDr) || [];
   const [search, setSearch] = useState("");
+  const [billingSearch, setBillingSearch] = useState("");
   const [page, setPage] = useState(1);
   const [billingStatement, setBillingStatement] = useState([]);
   const pageSize = 5;
@@ -240,18 +241,31 @@ export default function Billing() {
     }
   };
 
+  // Filter billing statement based on search
+  const filteredBillingStatement = useMemo(() => {
+    if (!billingSearch.trim()) return billingStatement;
+    const s = billingSearch.toLowerCase();
+    return billingStatement.filter(item =>
+      item.waybillNo?.toLowerCase().includes(s) ||
+      item.destination?.toLowerCase().includes(s) ||
+      item.drNo?.toLowerCase().includes(s) // ||
+      // item.wbDate?.toLowerCase().includes(s) ||
+      // item.drDate?.toLowerCase().includes(s)
+    );
+  }, [billingStatement, billingSearch]);
+
   // Get unique destinations in current billing statement (in order of appearance)
   const uniqueDestinations = useMemo(() => {
     const seen = new Set();
     const result = [];
-    for (const item of billingStatement) {
+    for (const item of filteredBillingStatement) {
       if (!seen.has(item.destination)) {
         seen.add(item.destination);
         result.push(item.destination);
       }
     }
     return result;
-  }, [billingStatement]);
+  }, [filteredBillingStatement]);
 
   // Open modal and initialize order
   const openSortModal = () => {
@@ -305,17 +319,18 @@ export default function Billing() {
     return 'bg-green-100';
   };
 
-  const totalItems = billingStatement.length;
-  const incompleteItems = billingStatement.filter(
+  const totalItems = filteredBillingStatement.length;
+  const incompleteItems = filteredBillingStatement.filter(
     (item) => !(item.wbDate && item.drDate)
   ).length;
-  const totalDV = billingStatement.reduce((sum, item) => sum + item.dv, 0);
-  const totalCharges = billingStatement.reduce((sum, item) => sum + item.charges, 0);
+  const totalDV = filteredBillingStatement.reduce((sum, item) => sum + item.dv, 0);
+  const totalCharges = filteredBillingStatement.reduce((sum, item) => sum + item.charges, 0);
 
 
   const printRef = useRef();
+  const newPrintRef = useRef();
   const handlePrint = () => {
-    const printContent = ""; //printRef.current.innerHTML;
+    const printContent = newPrintRef.current.innerHTML;
     const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
       <html>
@@ -327,16 +342,15 @@ export default function Billing() {
             thead { background: #eee; }
           </style>
         </head>
-        <body>
-          <div>
-            <div style="position: absolute; top: 240px; left: 210; background-color: green; width: 120px; height: 2px;"></div>
+        <body style="margin: 0; padding: 0;">
+          <div style="visibility: hidden">
+            <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
+            <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
             <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
             <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
             <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
-            <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
           </div>
-          <div style="display: nonea">
-            {/* Full A4 Grid - Vertical lines (full height) */}
+          <div style="visibility: hidden">
             <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
@@ -347,7 +361,6 @@ export default function Billing() {
             <div style="position: absolute; top: 0; left: 700px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 800px; background-color: red; width: 1px; height: 1200px;"></div>
             
-            {/* Full A4 Grid - Horizontal lines (full width) */}
             <div style="position: absolute; top: 0px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
             <div style="position: absolute; top: 100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
             <div style="position: absolute; top: 200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
@@ -592,6 +605,23 @@ export default function Billing() {
 
         </div>
 
+        {/* Billing Statement Search */}
+        <div className="flex items-center mb-4 relative">
+          <input
+            placeholder="Search billing items by waybill, destination, DR number, or date..."
+            value={billingSearch}
+            onChange={(e) => setBillingSearch(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          />
+          <button
+            onClick={() => setBillingSearch("")}
+            className="absolute right-[0.1rem] px-3 py-2 text-gray-400 hover:text-gray-700"
+            title="Clear search"
+          >
+            ×
+          </button>
+        </div>
+
         {/* Scrollable table */}
         <div className="overflow-y-auto max-h-[400px] border border-gray-200 rounded-lg">
           <table className="w-full text-sm text-left text-gray-700 bg-white">
@@ -611,14 +641,14 @@ export default function Billing() {
               </tr>
             </thead>
             <tbody>
-              {billingStatement.length === 0 ? (
+              {filteredBillingStatement.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center text-gray-400 py-8">
-                    No items in billing statement.
+                    {billingSearch ? 'No items match your search.' : 'No items in billing statement.'}
                   </td>
                 </tr>
               ) : (
-                billingStatement.map((item, idx) => (
+                filteredBillingStatement.map((item, idx) => (
                   <tr
                     key={item.drId}
                     className={`${getRowColor(item.waybillNo, item.wbDate, item.drDate)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
@@ -716,18 +746,23 @@ export default function Billing() {
         </div>
 
         {/* Summary stays fixed below */}
-        {billingStatement.length > 0 && (
+        {filteredBillingStatement.length > 0 && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg border-t border-gray-200">
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-700">
-                Total Items: {totalItems}
+                {billingSearch ? `Filtered Items: ${totalItems}` : `Total Items: ${totalItems}`}
+                {billingSearch && billingStatement.length > 0 && (
+                  <span className="text-sm text-gray-500 ml-2">
+                    (of {billingStatement.length} total)
+                  </span>
+                )}
               </span>
               <div className="flex gap-6">
                 <span className="font-bold text-lg text-gray-900">
-                  Total DV: ₱{totalDV.toLocaleString()}
+                  {billingSearch ? 'Filtered DV: ' : 'Total DV: '}₱{totalDV.toLocaleString()}
                 </span>
                 <span className="font-bold text-lg text-gray-900">
-                  Total Charges: ₱{totalCharges.toLocaleString()}
+                  {billingSearch ? 'Filtered Charges: ' : 'Total Charges: '}₱{totalCharges.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -882,6 +917,123 @@ export default function Billing() {
         </Modal>
         {/* Hidden print version */}
         <div style={{ display: "none" }}>
+                     <div ref={newPrintRef}>
+             {(() => {
+               const itemsPerPage = 19;
+               const pages = [];
+               
+               for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
+                 const pageItems = billingStatement.slice(i, i + itemsPerPage);
+                 const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
+                 const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
+                 
+                 pages.push(
+                   <div key={i} style={{ position: 'relative', pageBreakAfter: 'always', minHeight: '1200px' }}>
+                    
+                     {/* Print Date */}
+                     <div className="print-date" style={{ position: 'absolute', top: '150px', left: '710px' }}>
+                       {new Date().toLocaleDateString('en-US', { 
+                         year: 'numeric', 
+                         month: '2-digit', 
+                         day: '2-digit' 
+                       })}
+                     </div>
+
+                     {/* Print Title */}
+                     <div className="print-title" style={{ position: 'absolute', top: '221px', left: '210px' }}>TRIMOTORS TECHNOLOGY CORP.</div>
+                     
+                     {/* Print Address */}
+                     <div className="print-address" style={{ position: 'absolute', top: '303px', left: '210px' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG, MUNTINLUPA MANILA</div>
+
+                     {/* Print Data Table */}
+                     <table className="print-data-table" style={{ position: 'absolute', top: '402px', left: '0px' }}>
+                       <thead>
+                         <tr>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Waybill No</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>WB Date</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Destination</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>D.R No.</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>DR Date</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '100px' }}>DV</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>CHARGES</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         <tr>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                         </tr>
+                         {pageItems.map((item) => (
+                           <tr key={item.drId}>
+                             <td
+                               style={{
+                                 fontFamily: 'Arial',
+                                 fontSize: '11px',
+                                 textAlign: 'center',
+                                 backgroundColor: duplicateWaybills.includes(item.waybillNo) ? '#ffe5e5' : 'transparent',
+                                 color: duplicateWaybills.includes(item.waybillNo) ? 'red' : 'inherit',
+                               }}
+                             >
+                               {item.waybillNo}
+                             </td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.wbDate) || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.destination}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.drNo}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                           </tr>
+                         ))}
+                         <tr>
+                           <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
+                           <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                             {pageTotalDV.toLocaleString()}
+                           </td>
+                           <td></td>
+                           <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                             {pageTotalCharges.toLocaleString()}
+                           </td>
+                         </tr>
+                       </tbody>
+                     </table>
+
+                     {/* Print Footer */}
+                     <div className="print-footer" style={{ position: 'absolute', left: '40px', top: '883px', width: '100%' }}>
+                       <div style={{ display: 'flex', width: '100%' }}>
+                         <div style={{ width: '230px' }}>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
+                         </div>
+                         <div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
+                         </div>
+                         <div style={{ position: 'absolute', right: '55px', top: '25px' }}>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
+                           <div>_________________________</div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Print Secret Footer */}
+                     <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
+                   </div>
+                 );
+               }
+               
+               return pages;
+             })()}
+           </div>
           {/* <div> */}
           <div ref={printRef}>
             <div style={{ fontFamily: 'Arial Narrow', fontSize: '14px', fontWeight: 'bold' }}>
