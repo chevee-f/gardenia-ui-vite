@@ -47,12 +47,103 @@ export default function Billing() {
   // Add this state
   const [drList, setDrList] = useState([]);
 
-  // When allDr changes, update local state
+  // When allDr changes, update local state and sort added items to end
   useEffect(() => {
     if (allDr) {
       setDrList(allDr);
     }
   }, [allDr]);
+
+  // Removed expensive sorting useEffect - was causing lag with 40+ items
+
+  // Auto-save billing statement and DR list to localStorage whenever they change
+  useEffect(() => {
+    if (billingStatement.length > 0) {
+      const saveData = {
+        billingStatement,
+        drList,
+        timestamp: new Date().toISOString(),
+        version: '1.0'
+      };
+      localStorage.setItem("billingStatement", JSON.stringify(saveData));
+      console.log('Billing statement auto-saved:', billingStatement.length, 'items');
+    }
+  }, [billingStatement, drList]);
+
+  // Create periodic backup every 5 minutes
+  useEffect(() => {
+    const backupInterval = setInterval(() => {
+      if (billingStatement.length > 0) {
+        const backupData = {
+          billingStatement,
+          drList,
+          timestamp: new Date().toISOString(),
+          version: '1.0',
+          isBackup: true
+        };
+        localStorage.setItem("billingStatement_backup", JSON.stringify(backupData));
+        console.log('Backup created at:', new Date().toLocaleTimeString());
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(backupInterval);
+  }, [billingStatement, drList]);
+
+  // Auto-load billing statement from localStorage on component mount
+  useEffect(() => {
+    const loadSavedData = (data, source) => {
+      if (data.billingStatement && Array.isArray(data.billingStatement)) {
+        setBillingStatement(data.billingStatement);
+        console.log(`Billing statement auto-loaded from ${source}:`, data.billingStatement.length, 'items');
+        
+        // Restore DR list if available
+        if (data.drList && Array.isArray(data.drList)) {
+          setDrList(data.drList);
+          console.log('DR list also restored:', data.drList.length, 'items');
+        }
+        
+        // Show timestamp info
+        if (data.timestamp) {
+          const savedDate = new Date(data.timestamp);
+          const timeDiff = Math.floor((Date.now() - savedDate.getTime()) / (1000 * 60)); // minutes
+          console.log(`Data restored from ${timeDiff} minutes ago`);
+        }
+        return true;
+      }
+      return false;
+    };
+
+    // Try to load main data first
+    const saved = localStorage.getItem("billingStatement");
+    if (saved) {
+      try {
+        const parsedData = JSON.parse(saved);
+        if (!loadSavedData(parsedData, 'main storage')) {
+          throw new Error('Invalid data structure');
+        }
+      } catch (error) {
+        console.error('Error loading saved billing statement:', error);
+        // Try backup if main data is corrupted
+        const backup = localStorage.getItem("billingStatement_backup");
+        if (backup) {
+          try {
+            const backupData = JSON.parse(backup);
+            if (loadSavedData(backupData, 'backup storage')) {
+              console.log('Successfully restored from backup after main data corruption');
+            }
+          } catch (backupError) {
+            console.error('Backup data also corrupted:', backupError);
+            // Clear all corrupted data
+            localStorage.removeItem("billingStatement");
+            localStorage.removeItem("billingStatement_backup");
+          }
+        } else {
+          // Clear corrupted main data
+          localStorage.removeItem("billingStatement");
+        }
+      }
+    }
+  }, []); // Only run once on mount
 
   // Modify filtered to use drList instead of allDr
   const filtered = useMemo(() => {
@@ -111,10 +202,7 @@ export default function Billing() {
 
     setBillingStatement(prev => [...prev, newItem]);
 
-    setDrList(prev => {
-      const remaining = prev.filter(item => item._id !== dr._id);
-      return [...remaining, dr];
-    });
+    // No need to modify drList order - removed to prevent lag
   };
 
   // Update date fields in billing statement
@@ -130,7 +218,26 @@ export default function Billing() {
 
   // Remove item from billing statement
   const removeFromBillingStatement = (drId) => {
-    setBillingStatement(prev => prev.filter(item => item.drId !== drId));
+    setBillingStatement(prev => {
+      const newStatement = prev.filter(item => item.drId !== drId);
+      // Clear localStorage if billing statement becomes empty
+      if (newStatement.length === 0) {
+        localStorage.removeItem("billingStatement");
+        localStorage.removeItem("billingStatement_backup");
+        console.log('Billing statement cleared, localStorage cleaned');
+      }
+      return newStatement;
+    });
+  };
+
+  // Clear all items from billing statement
+  const clearAllBillingStatement = () => {
+    if (window.confirm('Are you sure you want to clear all items from the billing statement? This action cannot be undone.')) {
+      setBillingStatement([]);
+      localStorage.removeItem("billingStatement");
+      localStorage.removeItem("billingStatement_backup");
+      console.log('All billing statement items cleared');
+    }
   };
 
   // Get unique destinations in current billing statement (in order of appearance)
@@ -221,13 +328,34 @@ export default function Billing() {
           </style>
         </head>
         <body>
-          <div style="display: none">
-            <div style="position: absolute; top: 195px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
-            <div style="position: absolute; top: 195px; left: 0; background-color: blue; width: 10px; height: 10px;"></div>
-
+          <div>
+            {/* Full A4 Grid - Vertical lines (full height) */}
+            <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 300px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 400px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 500px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 600px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 700px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 800px; background-color: red; width: 1px; height: 1200px;"></div>
             
-            <div style="position: absolute; top: 886px; left: 525px; background-color: red; width: 2px; height: 200px;"></div>
-            <div style="position: absolute; top: 1035px; left: 0; background-color: blue; width: 700px; height: 1px;"></div>
+            {/* Full A4 Grid - Horizontal lines (full width) */}
+            <div style="position: absolute; top: 0px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 400px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 500px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 600px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 700px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 800px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 900px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1000px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1250px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
           </div>
           ${printContent}
         </body>
@@ -311,6 +439,22 @@ export default function Billing() {
     );
     closePercentEdit();
   };
+
+  const [editDrNoPopup, setEditDrNoPopup] = useState({ open: false, drId: null, value: "" });
+
+  const openDrNoEdit = (drId, currentValue) => {
+    setEditDrNoPopup({ open: true, drId, value: currentValue });
+  };
+
+  const closeDrNoEdit = () => {
+    setEditDrNoPopup({ open: false, drId: null, value: "" });
+  };
+
+  const saveDrNoEdit = () => {
+    updateBillingItem(editDrNoPopup.drId, "drNo", editDrNoPopup.value);
+    closeDrNoEdit();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
       {/* Billing Records Panel */}
@@ -341,20 +485,13 @@ export default function Billing() {
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="billing-records-table">
               {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center text-gray-400 py-8">Loading records...</td>
                 </tr>
               ) : (
-                [...paginated]
-                  .sort((a, b) => {
-                    // Disabled (already added) should be last
-                    const aDisabled = isDRAdded(a._id) ? 1 : 0;
-                    const bDisabled = isDRAdded(b._id) ? 1 : 0;
-                    return aDisabled - bDisabled;
-                  })
-                  .map((dr, idx) => (
+                paginated.map((dr, idx) => (
                     <tr key={dr._id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-3 text-sm">{dr.waybill_no}</td>
                       <td className="px-4 py-3 text-sm">{dr.name_of_dealer}</td>
@@ -423,7 +560,14 @@ export default function Billing() {
             </span>
           </h1>
           <div>
-
+            <button
+              className="mr-4 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
+              onClick={clearAllBillingStatement}
+              title="Clear All Items"
+              disabled={billingStatement.length === 0}
+            >
+              Clear All
+            </button>
             <button
               className="mr-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
               onClick={openSortModal}
@@ -512,7 +656,13 @@ export default function Billing() {
                     >
                       {item.destination || <span className="text-gray-400 italic">Set Destination</span>}
                     </td>
-                    <td className="px-3 py-3 text-sm font-medium">{item.drNo}</td>
+                    <td
+                      className="px-3 py-3 text-sm font-medium cursor-pointer hover:underline"
+                      onClick={() => openDrNoEdit(item.drId, item.drNo)}
+                      title="Click to edit DR No"
+                    >
+                      {item.drNo}
+                    </td>
                     <td className="px-3 py-3 relative">
                       <input
                         type="date"
@@ -576,6 +726,34 @@ export default function Billing() {
             </div>
           </div>
         )}
+
+        <Modal open={editDrNoPopup.open} onClose={closeDrNoEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit D.R No.</h2>
+          <input
+            type="text"
+            value={editDrNoPopup.value}
+            onChange={e => setEditDrNoPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter D.R No."
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDrNoEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDrNoEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDrNoEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
         <Modal open={editPercentPopup.open} onClose={closePercentEdit}>
           <h2 className="text-lg font-bold mb-4">Edit Percent</h2>
           <input
