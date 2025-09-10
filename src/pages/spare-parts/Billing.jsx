@@ -931,7 +931,7 @@ export default function Billing() {
                    <div key={i} style={{ position: 'relative', pageBreakAfter: 'always', minHeight: '1200px' }}>
                     
                      {/* Print Date */}
-                     <div className="print-date" style={{ position: 'absolute', top: '150px', left: '710px' }}>
+                     <div className="print-date" style={{ position: 'absolute', top: '145px', left: '710px' }}>
                        {new Date().toLocaleDateString('en-US', { 
                          year: 'numeric', 
                          month: '2-digit', 
@@ -943,10 +943,10 @@ export default function Billing() {
                      <div className="print-title" style={{ position: 'absolute', top: '221px', left: '210px' }}>TRIMOTORS TECHNOLOGY CORP.</div>
                      
                      {/* Print Address */}
-                     <div className="print-address" style={{ position: 'absolute', top: '303px', left: '210px' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG, MUNTINLUPA MANILA</div>
+                     <div className="print-address" style={{ position: 'absolute', top: '297px', left: '210px' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG, MUNTINLUPA MANILA</div>
 
                      {/* Print Data Table */}
-                     <table className="print-data-table" style={{ position: 'absolute', top: '402px', left: '0px' }}>
+                     <table className="print-data-table" style={{ position: 'absolute', top: '360px', left: '0px' }}>
                        <thead>
                          <tr>
                            <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Waybill No</th>
@@ -989,7 +989,7 @@ export default function Billing() {
                              <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
                              <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                              <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right", paddingRight: '7px' }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                            </tr>
                          ))}
                          <tr>
