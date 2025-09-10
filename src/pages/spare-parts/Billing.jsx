@@ -1028,7 +1028,7 @@ export default function Billing() {
                      
                      <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalDV.toLocaleString()}</div>
                      
-                     <div style={{ position: 'absolute', top: '1215px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
+                     <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
