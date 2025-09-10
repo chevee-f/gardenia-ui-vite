@@ -343,14 +343,14 @@ export default function Billing() {
           </style>
         </head>
         <body style="margin: 0; padding: 0;">
-          <div style="visibility: hiddene">
+          <div style="visibility: hidden">
             <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
             <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
             <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
             <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
             <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
           </div>
-          <div style="visibility: hiddene">
+          <div style="visibility: hidden">
             <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
@@ -1028,7 +1028,7 @@ export default function Billing() {
                      
                      <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalDV.toLocaleString()}</div>
                      
-                     <div style={{ position: 'absolute', top: '1170px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
+                     <div style={{ position: 'absolute', top: '1215px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
