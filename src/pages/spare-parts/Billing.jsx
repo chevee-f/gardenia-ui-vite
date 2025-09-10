@@ -919,7 +919,7 @@ export default function Billing() {
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
              {(() => {
-               const itemsPerPage = 21;
+               const itemsPerPage = 22;
                const pages = [];
                
                for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
@@ -1025,6 +1025,10 @@ export default function Billing() {
                          </div>
                        </div>
                      </div>
+                     
+                     <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalDV.toLocaleString()}</div>
+                     
+                     <div style={{ position: 'absolute', top: '1170px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
