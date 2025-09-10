@@ -343,14 +343,14 @@ export default function Billing() {
           </style>
         </head>
         <body style="margin: 0; padding: 0;">
-          <div style="visibility: hidden">
+          <div style="visibility: hiddene">
             <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
             <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
             <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
             <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
             <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
           </div>
-          <div style="visibility: hidden">
+          <div style="visibility: hiddene">
             <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
@@ -992,7 +992,8 @@ export default function Billing() {
                              <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right", paddingRight: '7px' }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                            </tr>
                          ))}
-                         <tr>
+                         {/* OLD TOTAL ROW */}
+                         <tr style={{ display: 'none' }}>
                            <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
                            <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
                              {pageTotalDV.toLocaleString()}
