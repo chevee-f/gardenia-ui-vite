@@ -919,7 +919,7 @@ export default function Billing() {
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
              {(() => {
-               const itemsPerPage = 19;
+               const itemsPerPage = 21;
                const pages = [];
                
                for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
@@ -946,7 +946,7 @@ export default function Billing() {
                      <div className="print-address" style={{ position: 'absolute', top: '297px', left: '210px' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG, MUNTINLUPA MANILA</div>
 
                      {/* Print Data Table */}
-                     <table className="print-data-table" style={{ position: 'absolute', top: '360px', left: '0px' }}>
+                     <table className="print-data-table" style={{ position: 'absolute', top: '366px', left: '0px' }}>
                        <thead>
                          <tr>
                            <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Waybill No</th>
