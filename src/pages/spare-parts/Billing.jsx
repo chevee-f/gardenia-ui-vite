@@ -18,6 +18,7 @@ function Modal({ open, onClose, children }) {
 export default function Billing() {
   const allDr = useQuery(api.dr.getAllDr) || [];
   const [search, setSearch] = useState("");
+  const [billingSearch, setBillingSearch] = useState("");
   const [page, setPage] = useState(1);
   const [billingStatement, setBillingStatement] = useState([]);
   const pageSize = 5;
@@ -47,12 +48,103 @@ export default function Billing() {
   // Add this state
   const [drList, setDrList] = useState([]);
 
-  // When allDr changes, update local state
+  // When allDr changes, update local state and sort added items to end
   useEffect(() => {
     if (allDr) {
       setDrList(allDr);
     }
   }, [allDr]);
+
+  // Removed expensive sorting useEffect - was causing lag with 40+ items
+
+  // Auto-save billing statement and DR list to localStorage whenever they change
+  useEffect(() => {
+    if (billingStatement.length > 0) {
+      const saveData = {
+        billingStatement,
+        drList,
+        timestamp: new Date().toISOString(),
+        version: '1.0'
+      };
+      localStorage.setItem("billingStatement", JSON.stringify(saveData));
+      console.log('Billing statement auto-saved:', billingStatement.length, 'items');
+    }
+  }, [billingStatement, drList]);
+
+  // Create periodic backup every 5 minutes
+  useEffect(() => {
+    const backupInterval = setInterval(() => {
+      if (billingStatement.length > 0) {
+        const backupData = {
+          billingStatement,
+          drList,
+          timestamp: new Date().toISOString(),
+          version: '1.0',
+          isBackup: true
+        };
+        localStorage.setItem("billingStatement_backup", JSON.stringify(backupData));
+        console.log('Backup created at:', new Date().toLocaleTimeString());
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(backupInterval);
+  }, [billingStatement, drList]);
+
+  // Auto-load billing statement from localStorage on component mount
+  useEffect(() => {
+    const loadSavedData = (data, source) => {
+      if (data.billingStatement && Array.isArray(data.billingStatement)) {
+        setBillingStatement(data.billingStatement);
+        console.log(`Billing statement auto-loaded from ${source}:`, data.billingStatement.length, 'items');
+        
+        // Restore DR list if available
+        if (data.drList && Array.isArray(data.drList)) {
+          setDrList(data.drList);
+          console.log('DR list also restored:', data.drList.length, 'items');
+        }
+        
+        // Show timestamp info
+        if (data.timestamp) {
+          const savedDate = new Date(data.timestamp);
+          const timeDiff = Math.floor((Date.now() - savedDate.getTime()) / (1000 * 60)); // minutes
+          console.log(`Data restored from ${timeDiff} minutes ago`);
+        }
+        return true;
+      }
+      return false;
+    };
+
+    // Try to load main data first
+    const saved = localStorage.getItem("billingStatement");
+    if (saved) {
+      try {
+        const parsedData = JSON.parse(saved);
+        if (!loadSavedData(parsedData, 'main storage')) {
+          throw new Error('Invalid data structure');
+        }
+      } catch (error) {
+        console.error('Error loading saved billing statement:', error);
+        // Try backup if main data is corrupted
+        const backup = localStorage.getItem("billingStatement_backup");
+        if (backup) {
+          try {
+            const backupData = JSON.parse(backup);
+            if (loadSavedData(backupData, 'backup storage')) {
+              console.log('Successfully restored from backup after main data corruption');
+            }
+          } catch (backupError) {
+            console.error('Backup data also corrupted:', backupError);
+            // Clear all corrupted data
+            localStorage.removeItem("billingStatement");
+            localStorage.removeItem("billingStatement_backup");
+          }
+        } else {
+          // Clear corrupted main data
+          localStorage.removeItem("billingStatement");
+        }
+      }
+    }
+  }, []); // Only run once on mount
 
   // Modify filtered to use drList instead of allDr
   const filtered = useMemo(() => {
@@ -76,20 +168,27 @@ export default function Billing() {
     return billingStatement.some(item => item.drId === drId);
   };
 
-  const getRateForDestination = (destination) => {
+  const getRateForDestination = (destination, fallback) => {
     const found = rates.find(r =>
       destination && destination.toLowerCase().includes(r.address.toLowerCase())
     );
-    return [found ? found.rate : 0, found ? found.address : ''];
+    if (found) return [found.rate, found.address];
+    // Retry with fallback (dr.address)
+    if (fallback) {
+      const foundFallback = rates.find(r =>
+        fallback && fallback.toLowerCase().includes(r.address.toLowerCase())
+      );
+      if (foundFallback) return [foundFallback.rate, foundFallback.address];
+    }
+    return [0, ''];
   };
 
   // Add DR to billing statement
   const addToBillingStatement = (dr) => {
     if (isDRAdded(dr._id)) return;
 
-    const [percent, address] = getRateForDestination(dr.name_of_dealer || '');
+    const [percent, address] = getRateForDestination(dr.name_of_dealer || '', dr.address || '');
     const dv = parseFloat(dr.declared_amount) || 0;
-
     const newItem = {
       drId: dr._id,
       waybillNo: dr.waybill_no || '',
@@ -104,17 +203,14 @@ export default function Billing() {
 
     setBillingStatement(prev => [...prev, newItem]);
 
-    setDrList(prev => {
-      const remaining = prev.filter(item => item._id !== dr._id);
-      return [...remaining, dr];
-    });
+    // No need to modify drList order - removed to prevent lag
   };
 
   // Update date fields in billing statement
   const updateBillingItem = (drId, field, value) => {
-    setBillingStatement(prev => 
-      prev.map(item => 
-        item.drId === drId 
+    setBillingStatement(prev =>
+      prev.map(item =>
+        item.drId === drId
           ? { ...item, [field]: value }
           : item
       )
@@ -123,21 +219,53 @@ export default function Billing() {
 
   // Remove item from billing statement
   const removeFromBillingStatement = (drId) => {
-    setBillingStatement(prev => prev.filter(item => item.drId !== drId));
+    setBillingStatement(prev => {
+      const newStatement = prev.filter(item => item.drId !== drId);
+      // Clear localStorage if billing statement becomes empty
+      if (newStatement.length === 0) {
+        localStorage.removeItem("billingStatement");
+        localStorage.removeItem("billingStatement_backup");
+        console.log('Billing statement cleared, localStorage cleaned');
+      }
+      return newStatement;
+    });
   };
+
+  // Clear all items from billing statement
+  const clearAllBillingStatement = () => {
+    if (window.confirm('Are you sure you want to clear all items from the billing statement? This action cannot be undone.')) {
+      setBillingStatement([]);
+      localStorage.removeItem("billingStatement");
+      localStorage.removeItem("billingStatement_backup");
+      console.log('All billing statement items cleared');
+    }
+  };
+
+  // Filter billing statement based on search
+  const filteredBillingStatement = useMemo(() => {
+    if (!billingSearch.trim()) return billingStatement;
+    const s = billingSearch.toLowerCase();
+    return billingStatement.filter(item =>
+      item.waybillNo?.toLowerCase().includes(s) ||
+      item.destination?.toLowerCase().includes(s) ||
+      item.drNo?.toLowerCase().includes(s) // ||
+      // item.wbDate?.toLowerCase().includes(s) ||
+      // item.drDate?.toLowerCase().includes(s)
+    );
+  }, [billingStatement, billingSearch]);
 
   // Get unique destinations in current billing statement (in order of appearance)
   const uniqueDestinations = useMemo(() => {
     const seen = new Set();
     const result = [];
-    for (const item of billingStatement) {
+    for (const item of filteredBillingStatement) {
       if (!seen.has(item.destination)) {
         seen.add(item.destination);
         result.push(item.destination);
       }
     }
     return result;
-  }, [billingStatement]);
+  }, [filteredBillingStatement]);
 
   // Open modal and initialize order
   const openSortModal = () => {
@@ -190,19 +318,20 @@ export default function Billing() {
     if (filled < 3) return 'bg-yellow-100';
     return 'bg-green-100';
   };
-  
-  const totalItems = billingStatement.length;
-  const incompleteItems = billingStatement.filter(
+
+  const totalItems = filteredBillingStatement.length;
+  const incompleteItems = filteredBillingStatement.filter(
     (item) => !(item.wbDate && item.drDate)
   ).length;
-  const totalDV = billingStatement.reduce((sum, item) => sum + item.dv, 0);
-  const totalCharges = billingStatement.reduce((sum, item) => sum + item.charges, 0);
+  const totalDV = filteredBillingStatement.reduce((sum, item) => sum + item.dv, 0);
+  const totalCharges = filteredBillingStatement.reduce((sum, item) => sum + item.charges, 0);
 
-  
+
   const printRef = useRef();
+  const newPrintRef = useRef();
   const handlePrint = () => {
-    const printContent = printRef.current.innerHTML;
-    const printWindow = window.open("", "", "width=900,height=650");
+    const printContent = newPrintRef.current.innerHTML;
+    const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
       <html>
         <head>
@@ -213,46 +342,143 @@ export default function Billing() {
             thead { background: #eee; }
           </style>
         </head>
-        <body>
+        <body style="margin: 0; padding: 0;">
+          <div style="visibility: hidden">
+            <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
+            <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
+            <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
+            <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
+            <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
+          </div>
+          <div style="visibility: hidden">
+            <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 300px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 400px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 500px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 600px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 700px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 800px; background-color: red; width: 1px; height: 1200px;"></div>
+            
+            <div style="position: absolute; top: 0px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 400px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 500px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 600px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 700px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 800px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 900px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1000px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1250px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+          </div>
           ${printContent}
         </body>
       </html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    // printWindow.print();
+    // printWindow.close();
   };
 
   const [editWaybillPopup, setEditWaybillPopup] = useState({ open: false, drId: null, value: "" });
 
-const openWaybillEdit = (drId, currentValue) => {
-  setEditWaybillPopup({ open: true, drId, value: currentValue });
-};
+  const openWaybillEdit = (drId, currentValue) => {
+    setEditWaybillPopup({ open: true, drId, value: currentValue });
+  };
 
-const closeWaybillEdit = () => {
-  setEditWaybillPopup({ open: false, drId: null, value: "" });
-};
+  const closeWaybillEdit = () => {
+    setEditWaybillPopup({ open: false, drId: null, value: "" });
+  };
 
-const saveWaybillEdit = () => {
-  updateBillingItem(editWaybillPopup.drId, "waybillNo", editWaybillPopup.value);
-  closeWaybillEdit();
-};
+  const saveWaybillEdit = () => {
+    updateBillingItem(editWaybillPopup.drId, "waybillNo", editWaybillPopup.value);
+    closeWaybillEdit();
+  };
 
-function formatDateShort(dateStr) {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  if (isNaN(date)) return "";
-  const day = date.getDate();
-  const month = date.toLocaleString('en-US', { month: 'short' });
-  const year = date.getFullYear().toString().slice(-2);
-  return `${day}-${month}-${year}`;
-}
+  function formatDateShort(dateStr) {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date)) return "";
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = date.getFullYear().toString().slice(-2);
+    return `${day}-${month}-${year}`;
+  }
+
+  const [editDestinationPopup, setEditDestinationPopup] = useState({ open: false, drId: null, value: "" });
+
+  const openDestinationEdit = (drId, currentValue) => {
+    setEditDestinationPopup({ open: true, drId, value: currentValue });
+  };
+
+  const closeDestinationEdit = () => {
+    setEditDestinationPopup({ open: false, drId: null, value: "" });
+  };
+
+  const saveDestinationEdit = () => {
+    updateBillingItem(editDestinationPopup.drId, "destination", editDestinationPopup.value);
+    closeDestinationEdit();
+  };
+
+  function getDuplicateWaybills(statement) {
+    const counts = {};
+    statement.forEach(item => {
+      if (!item.waybillNo) return;
+      counts[item.waybillNo] = (counts[item.waybillNo] || 0) + 1;
+    });
+    return Object.keys(counts).filter(k => counts[k] > 1);
+  }
+  const duplicateWaybills = useMemo(() => getDuplicateWaybills(billingStatement), [billingStatement]);
+
+  const [editPercentPopup, setEditPercentPopup] = useState({ open: false, drId: null, value: "" });
+
+  const openPercentEdit = (drId, currentValue) => {
+    setEditPercentPopup({ open: true, drId, value: currentValue });
+  };
+
+  const closePercentEdit = () => {
+    setEditPercentPopup({ open: false, drId: null, value: "" });
+  };
+
+  const savePercentEdit = () => {
+    // Ensure value is a number and update charges as well
+    const percent = parseFloat(editPercentPopup.value) || 0;
+    setBillingStatement(prev =>
+      prev.map(item =>
+        item.drId === editPercentPopup.drId
+          ? { ...item, percent, charges: item.dv * (percent / 100) }
+          : item
+      )
+    );
+    closePercentEdit();
+  };
+
+  const [editDrNoPopup, setEditDrNoPopup] = useState({ open: false, drId: null, value: "" });
+
+  const openDrNoEdit = (drId, currentValue) => {
+    setEditDrNoPopup({ open: true, drId, value: currentValue });
+  };
+
+  const closeDrNoEdit = () => {
+    setEditDrNoPopup({ open: false, drId: null, value: "" });
+  };
+
+  const saveDrNoEdit = () => {
+    updateBillingItem(editDrNoPopup.drId, "drNo", editDrNoPopup.value);
+    closeDrNoEdit();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
       {/* Billing Records Panel */}
-      <div className="w-[45%] min-w-[527px] bg-white rounded-2xl shadow-lg p-8 billing-records">
+      <div className="w-[50%] py-8 billing-records">
         <h1 className="text-2xl font-bold mb-6 text-gray-900">Billing Records</h1>
         <div className="flex items-center mb-6 relative">
           <input
@@ -264,7 +490,7 @@ function formatDateShort(dateStr) {
             }}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
           />
-          <button 
+          <button
             onClick={() => setSearch("")}
             className="absolute right-[0.1rem] px-3 py-2">x</button>
         </div>
@@ -279,36 +505,39 @@ function formatDateShort(dateStr) {
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="billing-records-table">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center text-gray-400 py-8">No records found.</td>
+                  <td colSpan={5} className="text-center text-gray-400 py-8">Loading records...</td>
                 </tr>
               ) : (
-                [...paginated]
-                  .sort((a, b) => {
-                    // Disabled (already added) should be last
-                    const aDisabled = isDRAdded(a._id) ? 1 : 0;
-                    const bDisabled = isDRAdded(b._id) ? 1 : 0;
-                    return aDisabled - bDisabled;
-                  })
-                  .map((dr, idx) => (
+                paginated.map((dr, idx) => (
                     <tr key={dr._id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-3 text-sm">{dr.waybill_no}</td>
                       <td className="px-4 py-3 text-sm">{dr.name_of_dealer}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{getDRNumber(dr.ref_no)}</td>
                       {/* <td className="px-4 py-3 text-sm">₱{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td> */}
                       <td className="px-4 py-3">
-                        <button 
+                        <button
                           onClick={() => addToBillingStatement(dr)}
                           disabled={isDRAdded(dr._id)}
-                          className={`px-3 py-1 text-xs rounded font-medium transition ${
-                            isDRAdded(dr._id)
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
+                          className={`px-3 py-1 text-xs rounded font-medium transition flex items-center justify-center ${isDRAdded(dr._id)
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                          title={isDRAdded(dr._id) ? 'Added' : 'Add'}
                         >
-                          {isDRAdded(dr._id) ? 'Added' : 'Add'}
+                          {isDRAdded(dr._id) ? (
+                            // Check icon for added
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            // Plus icon for add
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -350,54 +579,81 @@ function formatDateShort(dateStr) {
               </span>
             </span>
           </h1>
-
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-          >
-            Print
-          </button>
-        </div>
-
-        {/* Scrollable table */}
-  <div className="overflow-y-auto max-h-[400px] border border-gray-200 rounded-lg">
-    <table className="w-full text-sm text-left text-gray-700 bg-white">
-      <thead className="text-xs text-gray-700 bg-gray-100 sticky top-0 z-1">
-        <tr>
-          <th className="px-3 py-3">Waybill No</th>
-          <th className="px-3 py-3">WB Date</th>
-          <th className="px-3 py-3 flex items-center gap-2">
-            Destination
+          <div>
             <button
-              className="ml-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
+              className="mr-4 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
+              onClick={clearAllBillingStatement}
+              title="Clear All Items"
+              disabled={billingStatement.length === 0}
+            >
+              Clear All
+            </button>
+            <button
+              className="mr-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
               onClick={openSortModal}
               title="Sort Destinations"
             >
               Sort
             </button>
-          </th>
-          <th className="px-3 py-3">DR No</th>
-          <th className="px-3 py-3">DR Date</th>
-          <th className="px-3 py-3">DV</th>
-          <th className="px-3 py-3">%</th>
-          <th className="px-3 py-3">Charges</th>
-          <th className="px-3 py-3">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {billingStatement.length === 0 ? (
-          <tr>
-            <td colSpan={9} className="text-center text-gray-400 py-8">
-              No items in billing statement.
-            </td>
-          </tr>
-        ) : (
-          billingStatement.map((item, idx) => (
-            <tr
-              key={item.drId}
-              className={`${getRowColor(item.waybillNo, item.wbDate, item.drDate)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {/* <td className="px-3 py-3 text-sm">
+              Print
+            </button>
+          </div>
+
+        </div>
+
+        {/* Billing Statement Search */}
+        <div className="flex items-center mb-4 relative">
+          <input
+            placeholder="Search billing items by waybill, destination, DR number, or date..."
+            value={billingSearch}
+            onChange={(e) => setBillingSearch(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          />
+          <button
+            onClick={() => setBillingSearch("")}
+            className="absolute right-[0.1rem] px-3 py-2 text-gray-400 hover:text-gray-700"
+            title="Clear search"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable table */}
+        <div className="overflow-y-auto max-h-[400px] border border-gray-200 rounded-lg">
+          <table className="w-full text-sm text-left text-gray-700 bg-white">
+            <thead className="text-xs text-gray-700 bg-gray-100 sticky top-0 z-1">
+              <tr>
+                <th className="px-3 py-3">Waybill No</th>
+                <th className="px-3 py-3">WB Date</th>
+                <th className="px-3 py-3 flex items-center gap-2">
+                  Destination
+                </th>
+                <th className="px-3 py-3">DR No</th>
+                <th className="px-3 py-3">DR Date</th>
+                <th className="px-3 py-3">DV</th>
+                <th className="px-3 py-3">%</th>
+                <th className="px-3 py-3">Charges</th>
+                <th className="px-3 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBillingStatement.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="text-center text-gray-400 py-8">
+                    {billingSearch ? 'No items match your search.' : 'No items in billing statement.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredBillingStatement.map((item, idx) => (
+                  <tr
+                    key={item.drId}
+                    className={`${getRowColor(item.waybillNo, item.wbDate, item.drDate)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
+                  >
+                    {/* <td className="px-3 py-3 text-sm">
                 {/^\d{3}-\d{4}$/.test(item.waybillNo) ? (
                   item.waybillNo
                 ) : (
@@ -412,79 +668,189 @@ function formatDateShort(dateStr) {
                   />
                 )}
               </td> */}
-              <td
-                className="px-3 py-3 text-sm cursor-pointer hover:underline"
-                onClick={() => openWaybillEdit(item.drId, item.waybillNo)}
-                title="Click to edit"
-              >
-                {item.waybillNo || <span className="text-gray-400 italic">Set Waybill No</span>}
-              </td>
-              <td className="px-3 py-3 relative">
-                <input
-                  type="date"
-                  value={item.wbDate}
-                  onChange={e => updateBillingItem(item.drId, 'wbDate', e.target.value)}
-                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
-                />
-                <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
-                  {formatDateShort(item.wbDate)}
-                </div>
-              </td>
-              <td className="px-3 py-3 text-sm">{item.destination}</td>
-              <td className="px-3 py-3 text-sm font-medium">{item.drNo}</td>
-              <td className="px-3 py-3 relative">
-                <input
-                  type="date"
-                  value={item.drDate}
-                  onChange={e => updateBillingItem(item.drId, 'drDate', e.target.value)}
-                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
-                />
-                <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
-                  {formatDateShort(item.drDate)}
-                </div>
-              </td>
-              <td className="px-3 py-3 text-sm">{item.dv.toLocaleString()}</td>
-              <td className="px-3 py-3 text-sm">{item.percent}%</td>
-              <td className="px-3 py-3 text-sm font-medium">
-                {item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="px-3 py-3">
-                <button
-                  onClick={() => removeFromBillingStatement(item.drId)}
-                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                  Remove
-                </button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openWaybillEdit(item.drId, item.waybillNo)}
+                      title="Click to edit"
+                    >
+                      {item.waybillNo || <span className="text-gray-400 italic">Set Waybill No</span>}
+                    </td>
+                    <td className="px-3 py-3 relative">
+                      <input
+                        type="date"
+                        value={item.wbDate}
+                        onChange={e => updateBillingItem(item.drId, 'wbDate', e.target.value)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
+                      />
+                      <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
+                        {formatDateShort(item.wbDate)}
+                      </div>
+                    </td>
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openDestinationEdit(item.drId, item.destination)}
+                      title="Click to edit destination"
+                    >
+                      {item.destination || <span className="text-gray-400 italic">Set Destination</span>}
+                    </td>
+                    <td
+                      className="px-3 py-3 text-sm font-medium cursor-pointer hover:underline"
+                      onClick={() => openDrNoEdit(item.drId, item.drNo)}
+                      title="Click to edit DR No"
+                    >
+                      {item.drNo}
+                    </td>
+                    <td className="px-3 py-3 relative">
+                      <input
+                        type="date"
+                        value={item.drDate}
+                        onChange={e => updateBillingItem(item.drId, 'drDate', e.target.value)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
+                      />
+                      <div className="text-xs text-gray-500 absolute top-[17px] left-[19px] width-[90px]">
+                        {formatDateShort(item.drDate)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-sm">{item.dv.toLocaleString()}</td>
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openPercentEdit(item.drId, item.percent)}
+                      title="Click to edit percent"
+                    >
+                      {Number(item.percent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
+                    <td className="px-3 py-3 text-sm font-medium">
+                      {item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        onClick={() => removeFromBillingStatement(item.drId)}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center"
+                        title="Remove"
+                      >
+                        {/* Trash icon */}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m-7 0h10" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
 
-      {/* 
+            {/* 
       {item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       */}
-    </table>
-  </div>
-        
+          </table>
+        </div>
+
         {/* Summary stays fixed below */}
-        {billingStatement.length > 0 && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border-t border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="font-medium text-gray-700">
-              Total Items: {totalItems}
-            </span>
-            <div className="flex gap-6">
-              <span className="font-bold text-lg text-gray-900">
-                Total DV: ₱{totalDV.toLocaleString()}
+        {filteredBillingStatement.length > 0 && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-700">
+                {billingSearch ? `Filtered Items: ${totalItems}` : `Total Items: ${totalItems}`}
+                {billingSearch && billingStatement.length > 0 && (
+                  <span className="text-sm text-gray-500 ml-2">
+                    (of {billingStatement.length} total)
+                  </span>
+                )}
               </span>
-              <span className="font-bold text-lg text-gray-900">
-                Total Charges: ₱{totalCharges.toLocaleString()}
-              </span>
+              <div className="flex gap-6">
+                <span className="font-bold text-lg text-gray-900">
+                  {billingSearch ? 'Filtered DV: ' : 'Total DV: '}₱{totalDV.toLocaleString()}
+                </span>
+                <span className="font-bold text-lg text-gray-900">
+                  {billingSearch ? 'Filtered Charges: ' : 'Total Charges: '}₱{totalCharges.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        <Modal open={editDrNoPopup.open} onClose={closeDrNoEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit D.R No.</h2>
+          <input
+            type="text"
+            value={editDrNoPopup.value}
+            onChange={e => setEditDrNoPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter D.R No."
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDrNoEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDrNoEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDrNoEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={editPercentPopup.open} onClose={closePercentEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Percent</h2>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={editPercentPopup.value}
+            onChange={e => setEditPercentPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter percent"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                savePercentEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closePercentEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={savePercentEdit}
+            >Save</button>
+          </div>
+        </Modal>
+        <Modal open={editDestinationPopup.open} onClose={closeDestinationEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Destination</h2>
+          <input
+            type="text"
+            value={editDestinationPopup.value}
+            onChange={e => setEditDestinationPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter destination"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDestinationEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDestinationEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDestinationEdit}
+            >Save</button>
+          </div>
+        </Modal>
         <Modal open={sortModalOpen} onClose={() => setSortModalOpen(false)}>
           <h2 className="text-lg font-bold mb-4">Sort Destinations</h2>
           <ul className="mb-4">
@@ -496,9 +862,8 @@ function formatDateShort(dateStr) {
                 onDragEnter={() => handleDragEnter(idx)}
                 onDragOver={(e) => e.preventDefault()}
                 onDragEnd={handleDragEnd}
-                className={`flex items-center gap-2 mb-2 rounded px-3 py-2 border ${
-                  dragIndex === idx ? 'bg-blue-50 border-blue-300' : 'bg-gray-50'
-                }`}
+                className={`flex items-center gap-2 mb-2 rounded px-3 py-2 border ${dragIndex === idx ? 'bg-blue-50 border-blue-300' : 'bg-gray-50'
+                  }`}
                 title="Drag to reorder"
               >
                 <span className="cursor-grab select-none">↕</span>
@@ -533,6 +898,11 @@ function formatDateShort(dateStr) {
             className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
             maxLength={8}
             autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveWaybillEdit();
+              }
+            }}
           />
           <div className="flex justify-end gap-2">
             <button
@@ -547,13 +917,139 @@ function formatDateShort(dateStr) {
         </Modal>
         {/* Hidden print version */}
         <div style={{ display: "none" }}>
-        {/* <div> */}
+                     <div ref={newPrintRef}>
+             {(() => {
+               const itemsPerPage = 22;
+               const pages = [];
+               
+               for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
+                 const pageItems = billingStatement.slice(i, i + itemsPerPage);
+                 const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
+                 const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
+                 
+                 pages.push(
+                   <div key={i} style={{ position: 'relative', pageBreakAfter: 'always', minHeight: '1200px' }}>
+                    
+                     {/* Print Date */}
+                     <div className="print-date" style={{ position: 'absolute', top: '145px', left: '710px' }}>
+                       {new Date().toLocaleDateString('en-US', { 
+                         year: 'numeric', 
+                         month: '2-digit', 
+                         day: '2-digit' 
+                       })}
+                     </div>
+
+                     {/* Print Title */}
+                     <div className="print-title" style={{ position: 'absolute', top: '221px', left: '210px' }}>TRIMOTORS TECHNOLOGY CORP.</div>
+                     
+                     {/* Print Address */}
+                     <div className="print-address" style={{ position: 'absolute', top: '297px', left: '210px' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG, MUNTINLUPA MANILA</div>
+
+                     {/* Print Data Table */}
+                     <table className="print-data-table" style={{ position: 'absolute', top: '366px', left: '0px' }}>
+                       <thead>
+                         <tr>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Waybill No</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>WB Date</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Destination</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>D.R No.</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>DR Date</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '100px' }}>DV</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>CHARGES</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         <tr>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                           <td>&nbsp;</td>
+                         </tr>
+                         {pageItems.map((item) => (
+                           <tr key={item.drId}>
+                             <td
+                               style={{
+                                 fontFamily: 'Arial',
+                                 fontSize: '11px',
+                                 textAlign: 'center',
+                                 backgroundColor: duplicateWaybills.includes(item.waybillNo) ? '#ffe5e5' : 'transparent',
+                                 color: duplicateWaybills.includes(item.waybillNo) ? 'red' : 'inherit',
+                               }}
+                             >
+                               {item.waybillNo}
+                             </td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.wbDate) || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.destination}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.drNo}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right", paddingRight: '7px' }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                           </tr>
+                         ))}
+                         {/* OLD TOTAL ROW */}
+                         <tr style={{ display: 'none' }}>
+                           <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
+                           <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                             {pageTotalDV.toLocaleString()}
+                           </td>
+                           <td></td>
+                           <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                             {pageTotalCharges.toLocaleString()}
+                           </td>
+                         </tr>
+                       </tbody>
+                     </table>
+
+                     {/* Print Footer */}
+                     <div className="print-footer" style={{ position: 'absolute', left: '40px', top: '883px', width: '100%' }}>
+                       <div style={{ display: 'flex', width: '100%' }}>
+                         <div style={{ width: '230px' }}>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
+                         </div>
+                         <div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
+                         </div>
+                         <div style={{ position: 'absolute', right: '55px', top: '25px' }}>
+                           <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
+                           <div>_________________________</div>
+                         </div>
+                       </div>
+                     </div>
+                     
+                     <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalDV.toLocaleString()}</div>
+                     
+                     <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
+
+                     {/* Print Secret Footer */}
+                     <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
+                   </div>
+                 );
+               }
+               
+               return pages;
+             })()}
+           </div>
+          {/* <div> */}
           <div ref={printRef}>
             <div style={{ fontFamily: 'Arial Narrow', fontSize: '14px', fontWeight: 'bold' }}>
               TRIMOTORS TECHNOLOGY CORP.
             </div>
             <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold' }}>KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG</div>
-            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '80px'}}>MUNTINLUPA MANILA</div>
+            <div style={{ fontFamily: 'Arial', fontSize: '8px', fontWeight: 'bold', marginBottom: '160px' }}>MUNTINLUPA MANILA</div>
+            {/* rulers*/}
+            {/* <div style={{ position: 'absolute', top: '195px', left: '525px', backgroundColor: 'red', width: '10px', height: '10px' }}>[]</div>
+            <div style={{ position: 'absolute', top: '112px', left: 0, backgroundColor: 'green', width: '10px', height: '10px' }}></div> */}
+            {/* rulers*/}
             <table>
               <thead>
                 <tr>
@@ -562,46 +1058,72 @@ function formatDateShort(dateStr) {
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>Destination</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>D.R No.</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold' }}>DR Date</th>
-                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>DV</th>
+                  <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '100px' }}>DV</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '30px' }}>PERCENT</th>
                   <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '40px' }}>CHARGES</th>
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                  <td>&nbsp;</td>
+                </tr>
                 {billingStatement.map((item) => (
                   <tr key={item.drId}>
-                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.waybillNo}</td>
+                    <td
+                      style={{
+                        fontFamily: 'Arial',
+                        fontSize: '11px',
+                        textAlign: 'center',
+                        backgroundColor: duplicateWaybills.includes(item.waybillNo) ? '#ffe5e5' : 'transparent',
+                        color: duplicateWaybills.includes(item.waybillNo) ? 'red' : 'inherit',
+                      }}
+                    >
+                      {item.waybillNo}
+                    </td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.wbDate) || ""}</td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.destination}</td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.drNo}</td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{formatDateShort(item.drDate) || ""}</td>
-                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString()}</td>
+                    <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center" }}>{item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
                     <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right" }}>{item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
                 <tr>
                   <td colSpan={5} style={{ fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', textAlign: 'right' }}>TOTAL</td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '13px', fontWeight: 'bold' }}>{totalDV.toLocaleString()}</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                    {/* 3,991,436.29 */}
+                    {totalDV.toLocaleString()}
+                  </td>
                   <td></td>
-                  <td style={{ fontFamily: 'Calibri', fontSize: '13px', fontWeight: 'bold' }}>{totalCharges.toLocaleString()}</td>
+                  <td style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }}>
+                    {/* 31,249.181 */}
+                    {totalCharges.toLocaleString()}
+                  </td>
                 </tr>
               </tbody>
             </table>
-            <div style={{ position: 'absolute', bottom: '20px', width: '100%' }}>
+            <div style={{ position: 'absolute', left: '40px', bottom: '38px', width: '100%' }}>
               <div style={{ display: 'flex', width: '100%' }}>
-                <div style={{ width: '200px' }}>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
+                <div style={{ width: '230px' }}>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>ERVY YPARRAGUIRRE</div>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '10px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                 </div>
-                <div style={{ position: 'absolute', right: '0'}}>
-                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '20px' }}>RECEIVED BY:</div>
+                <div style={{ position: 'absolute', right: '55px' }}>
+                  <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
                   <div>_________________________</div>
                 </div>
               </div>

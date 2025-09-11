@@ -1,7 +1,121 @@
 [
   {
+    "region": "Region 13",
+    "address": "SURIGAO CITY",
+    "rate": 5.00,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 11",
+    "address": "AGDAO, DAVAO CITY",
+    "rate": 2,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 13",
+    "address": "BAYUGAN",
+    "rate": 4.42,
+    "lead_time_days": 2
+  },
+  {
+    "region": "Region 13",
+    "address": "BISLIG",
+    "rate": 4.37,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 10",
+    "address": "BUKIDNON",
+    "rate": 5.00,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 11",
+    "address": "BUHANGIN",
+    "rate": 2.00,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 13",
+    "address": "BUTUAN",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 11",
+    "address": "CALINAN",
+    "rate": 2.00,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 10",
+    "address": "CAGAYAN",
+    "rate": 5.00,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 11",
+    "address": "DIGOS",
+    "rate": 3.00,
+    "lead_time_days": 2
+  },
+  {
+    "region": "Region 9",
+    "address": "DIPOLOG",
+    "rate": 5.00,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 10",
+    "address": "ILIGAN",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 9",
+    "address": "IMELDA",
+    "rate": 5.00,
+    "lead_time_days": 4
+  },
+  {
     "region": "Region 9",
     "address": "IPIL",
+    "rate": 4.42,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 12",
+    "address": "KORONADAL",
+    "rate": 3.50,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 12",
+    "address": "COTABATO",
+    "rate": 3.50,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 9",
+    "address": "LILOY",
+    "rate": 5.00,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 11",
+    "address": "LUPON",
+    "rate": 3.50,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 13",
+    "address": "MANGAGOY, BISLIG",
+    "rate": 4.37,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 10",
+    "address": "MARANDING, LALA",
     "rate": 4.42,
     "lead_time_days": 4
   },
@@ -13,14 +127,122 @@
   },
   {
     "region": "Region 11",
-    "address": "AGDAO",
-    "rate": 2.00,
+    "address": "MATINA",
+    "rate": 3.50,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 9",
+    "address": "MOLAVE",
+    "rate": 4.42,
     "lead_time_days": 1
   },
   {
     "region": "Region 11",
-    "address": "BANGKAL",
-    "rate": 2.00,
+    "address": "NABUNTURAN",
+    "rate": 3.50,
+    "lead_time_days": 2
+  },
+  {
+    "region": "Region 10",
+    "address": "OZAMIS",
+    "rate": 5.00,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 9",
+    "address": "PAGADIAN",
+    "rate": 4.42,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 11",
+    "address": "PANABO",
+    "rate": 3.50,
     "lead_time_days": 1
+  },
+  {
+    "region": "Region 9",
+    "address": "SAMAL",
+    "rate": 3.50,
+    "lead_time_days": 2
+  },
+  {
+    "region": "Region 13",
+    "address": "SAN FRANCISCO",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 9",
+    "address": "SAN MIGUEL",
+    "rate": 5.00,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 9",
+    "address": "SINDANGAN",
+    "rate": 5.00,
+    "lead_time_days": 4
+  },
+  {
+    "region": "Region 11",
+    "address": "TAGUM",
+    "rate": 3.50,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 11",
+    "address": "TORIL",
+    "rate": 3.50,
+    "lead_time_days": 1
+  },
+  {
+    "region": "Region 13",
+    "address": "TRENTO",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 9",
+    "address": "ZAMBO NUÑEZ",
+    "rate": 5.00,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 9",
+    "address": "ZAMBOANGA",
+    "rate": 5.00,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 12",
+    "address": "SOUTH COTABATO",
+    "rate": 4.00,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 10",
+    "address": "MISAMIS OCCIDENTAL",
+    "rate": 4.42,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 12",
+    "address": "SULTAN KUDARAT",
+    "rate": 4.00,
+    "lead_time_days": 5
+  },
+  {
+    "region": "Region 10",
+    "address": "BUKIDNON",
+    "rate": 4.42,
+    "lead_time_days": 3
+  },
+  {
+    "region": "Region 13",
+    "address": "ILIGAN",
+    "rate": 4.42,
+    "lead_time_days": 3
   }
 ]
