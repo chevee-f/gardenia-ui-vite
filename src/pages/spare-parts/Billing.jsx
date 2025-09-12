@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect, useRef } from "react";
 import rates from './rates.json';
@@ -17,6 +17,7 @@ function Modal({ open, onClose, children }) {
 
 export default function Billing() {
   const allDr = useQuery(api.dr.getAllDr) || [];
+  const saveDr = useMutation(api.dr.saveDr);
   const [search, setSearch] = useState("");
   const [billingSearch, setBillingSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -25,6 +26,14 @@ export default function Billing() {
   const [sortModalOpen, setSortModalOpen] = useState(false);
   const [destinationOrder, setDestinationOrder] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
+  const [manualAddModalOpen, setManualAddModalOpen] = useState(false);
+  const [manualAddForm, setManualAddForm] = useState({
+    groupNo: '',
+    drNo: '',
+    waybillNo: '',
+    declaredAmount: ''
+  });
+  const [isSavingDr, setIsSavingDr] = useState(false);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -41,7 +50,8 @@ export default function Billing() {
   const handleDragEnd = () => setDragIndex(null);
 
   const getDRNumber = (str) => {
-    const match = str.match(/(?:DR)?\s*#?\s*(\d{9})/i);
+    // Handle both old format (DR # 123456789) and new format (DR # 1234567 (1234))
+    const match = str.match(/DR\s*#\s*(\d+)/i);
     return match ? match[1] : str;
   }
 
@@ -475,11 +485,94 @@ export default function Billing() {
     closeDrNoEdit();
   };
 
+  // Manual Add DR functions
+  const openManualAddModal = () => {
+    setManualAddForm({ groupNo: '', drNo: '', waybillNo: '', declaredAmount: '' });
+    setManualAddModalOpen(true);
+  };
+
+  const closeManualAddModal = () => {
+    setManualAddModalOpen(false);
+    setManualAddForm({ groupNo: '', drNo: '', waybillNo: '', declaredAmount: '' });
+  };
+
+  const handleManualAddFormChange = (field, value) => {
+    setManualAddForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveManualDr = async () => {
+    const { groupNo, drNo, waybillNo, declaredAmount } = manualAddForm;
+    
+    // Validation
+    if (!groupNo.trim() || !drNo.trim() || !waybillNo.trim() || !declaredAmount.trim()) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    // Validate declared amount is a number
+    const amount = parseFloat(declaredAmount);
+    if (isNaN(amount) || amount < 0) {
+      alert('Please enter a valid declared amount');
+      return;
+    }
+
+    setIsSavingDr(true);
+
+    try {
+      // Format the data according to requirements
+      const formattedData = {
+        ref_no: `DR # ${drNo} (${groupNo})`,
+        group_ref_no: groupNo,
+        waybill_no: waybillNo,
+        declared_amount: amount.toString()
+      };
+
+      // Save to convex
+      await saveDr({ data: [formattedData] });
+      
+      // Close modal and reset form
+      closeManualAddModal();
+      
+      // Show success message
+      alert('DR added successfully!');
+      
+    } catch (error) {
+      console.error('Error saving manual DR:', error);
+      alert('Error saving DR. Please try again.');
+    } finally {
+      setIsSavingDr(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
       {/* Billing Records Panel */}
       <div className="w-[50%] py-8 billing-records">
-        <h1 className="text-2xl font-bold mb-6 text-gray-900">Billing Records</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Billing Records</h1>
+          <button
+            onClick={openManualAddModal}
+            disabled={isSavingDr}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSavingDr ? (
+              <>
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Manual Add DR
+              </>
+            )}
+          </button>
+        </div>
         <div className="flex items-center mb-6 relative">
           <input
             placeholder="Search DR, Waybill, or Destination..."
@@ -913,6 +1006,85 @@ export default function Billing() {
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               onClick={saveWaybillEdit}
             >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={manualAddModalOpen} onClose={closeManualAddModal}>
+          <h2 className="text-lg font-bold mb-4">Manual Add DR</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Group No</label>
+              <input
+                type="text"
+                value={manualAddForm.groupNo}
+                onChange={e => handleManualAddFormChange('groupNo', e.target.value)}
+                placeholder="Enter Group No"
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">DR No</label>
+              <input
+                type="text"
+                value={manualAddForm.drNo}
+                onChange={e => handleManualAddFormChange('drNo', e.target.value)}
+                placeholder="Enter DR No"
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Waybill No</label>
+              <input
+                type="text"
+                value={manualAddForm.waybillNo}
+                onChange={e => {
+                  let val = e.target.value.replace(/[^0-9]/g, ''); // Only digits
+                  if (val.length > 3) {
+                    val = val.slice(0, 3) + '-' + val.slice(3, 7);
+                  }
+                  handleManualAddFormChange('waybillNo', val);
+                }}
+                placeholder="000-0000"
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                maxLength={8}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Declared Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={manualAddForm.declaredAmount}
+                onChange={e => handleManualAddFormChange('declaredAmount', e.target.value)}
+                placeholder="Enter declared amount"
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeManualAddModal}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              onClick={saveManualDr}
+              disabled={isSavingDr}
+            >
+              {isSavingDr ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Add DR'
+              )}
+            </button>
           </div>
         </Modal>
         {/* Hidden print version */}
