@@ -626,7 +626,7 @@ export default function Billing() {
         row.getCell(4).value = item.drNo || '';
         row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
         row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
-        row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
         row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Add borders and alignment to data cells
