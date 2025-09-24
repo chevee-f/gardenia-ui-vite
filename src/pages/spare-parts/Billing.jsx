@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect, useRef } from "react";
+import ExcelJS from 'exceljs';
 import rates from './rates.json';
 
 function Modal({ open, onClose, children }) {
@@ -34,6 +35,9 @@ export default function Billing() {
     declaredAmount: ''
   });
   const [isSavingDr, setIsSavingDr] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [filenameModalOpen, setFilenameModalOpen] = useState(false);
+  const [exportFilename, setExportFilename] = useState('BILLING NO.');
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -544,6 +548,332 @@ export default function Billing() {
     }
   };
 
+  // Excel export function
+  const exportToExcel = async () => {
+    if (billingStatement.length === 0) {
+      alert('No billing statement data to export');
+      return;
+    }
+
+    // Open filename modal
+    setExportFilename('BILLING NO.');
+    setFilenameModalOpen(true);
+  };
+
+  // Actual export function with filename
+  const performExport = async (userFilename) => {
+    try {
+      // Create a new workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Billing Statement');
+
+      // Add company header information
+      worksheet.getCell('A1').value = 'TRIMOTORS TECHNOLOGY CORP.';
+      worksheet.getCell('A1').font = { bold: true, size: 12 };
+
+      worksheet.getCell('A2').value = 'KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG MUNTINLUPA MANILA';
+      worksheet.getCell('A2').alignment = { wrapText: true };
+      
+      // Merge columns 1, 2, 3 in row 2
+      worksheet.mergeCells('A2:C2');
+      
+      // Set font properties after merging
+      worksheet.getCell('A2').font = { bold: true, size: 6, name: 'Arial' };
+
+      worksheet.getCell('A3').value = '';
+
+      // Set column widths manually
+      worksheet.getColumn(1).width = 10; // Waybill No
+      worksheet.getColumn(2).width = 10; // WB Date
+      worksheet.getColumn(3).width = 12; // Destination
+      worksheet.getColumn(4).width = 12; // DR No
+      worksheet.getColumn(5).width = 10; // DR Date
+      worksheet.getColumn(6).width = 14; // DV
+      worksheet.getColumn(7).width = 10; // Percent
+      worksheet.getColumn(8).width = 12; // Charges
+
+      // Manually add table headers at row 9
+      const headers = ['Waybill No', 'WB Date', 'Destination', 'DR No', 'DR Date', 'DV', 'Percent', 'Charges'];
+      const headerRow = worksheet.getRow(9);
+      
+      headers.forEach((header, colIndex) => {
+        const cell = headerRow.getCell(colIndex + 1);
+        cell.value = header;
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' } // Light gray
+        };
+      });
+
+      // Add data rows starting from row 10
+      billingStatement.forEach((item, index) => {
+        const rowNumber = 10 + index; // Start from row 10
+        const row = worksheet.getRow(rowNumber);
+        
+        // Set cell values
+        row.getCell(1).value = item.waybillNo || '';
+        row.getCell(2).value = item.wbDate ? formatDateShort(item.wbDate) : '';
+        row.getCell(3).value = item.destination || '';
+        row.getCell(4).value = item.drNo || '';
+        row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
+        row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
+        row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Add borders and alignment to data cells
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          
+          // Set alignment based on column
+          if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          } else { // All other columns (centered)
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          }
+        });
+      });
+
+      // Add total row
+      const totalRowNumber = 10 + billingStatement.length; // After all data rows
+      const totalRow = worksheet.getRow(totalRowNumber);
+      
+      // Set total row values
+      totalRow.getCell(1).value = '';
+      totalRow.getCell(2).value = '';
+      totalRow.getCell(3).value = '';
+      totalRow.getCell(4).value = '';
+      totalRow.getCell(5).value = 'TOTAL:';
+      totalRow.getCell(6).value = totalDV.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      totalRow.getCell(7).value = '';
+      totalRow.getCell(8).value = totalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // Style the total row
+      totalRow.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+        
+        // Set alignment based on column
+        if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        } else { // All other columns (centered)
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+        
+        // Bold the total values
+        if (colNumber === 5 || colNumber === 6 || colNumber === 8) { // TOTAL:, DV total, Charges total
+          cell.font = { bold: true };
+        }
+      });
+
+      // Add signature section after 3 empty rows
+      const signatureRowNumber = totalRowNumber + 4; // 3 empty rows after total
+      const signatureRow = worksheet.getRow(signatureRowNumber);
+      
+      // Add signature labels
+      signatureRow.getCell(1).value = 'PREPARED BY:';
+      signatureRow.getCell(3).value = '             CHECKED BY:';
+      signatureRow.getCell(7).value = 'RECEIVED BY:';
+      
+      // Style signature labels
+      signatureRow.getCell(1).font = { bold: true };
+      signatureRow.getCell(3).font = { bold: true };
+      signatureRow.getCell(7).font = { bold: true };
+
+      // Add signature lines row (next row)
+      const signatureLineRow = worksheet.getRow(signatureRowNumber + 1);
+      
+      // Add bottom border to columns 7 and 8 for signature lines
+      signatureLineRow.getCell(7).border = {
+        bottom: { style: 'thin' }
+      };
+      signatureLineRow.getCell(8).border = {
+        bottom: { style: 'thin' }
+      };
+
+      // Add signature names row
+      const signatureNamesRow = worksheet.getRow(signatureRowNumber + 2);
+      
+      // AILEEN MATUB (columns 1,2)
+      signatureNamesRow.getCell(1).value = 'AILEEN MATUB';
+      signatureNamesRow.getCell(1).font = { bold: true, size: 10 };
+      signatureNamesRow.getCell(1).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`A${signatureRowNumber + 2}:B${signatureRowNumber + 2}`);
+      
+      // ERVY YPARRAGUIRRE (columns 3,4)
+      signatureNamesRow.getCell(3).value = 'ERVY YPARRAGUIRRE';
+      signatureNamesRow.getCell(3).font = { bold: true, size: 10 };
+      signatureNamesRow.getCell(3).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`C${signatureRowNumber + 2}:D${signatureRowNumber + 2}`);
+
+      // Add titles row
+      const titlesRow = worksheet.getRow(signatureRowNumber + 3);
+      
+      // BRANCH MANAGER (columns 1,2)
+      titlesRow.getCell(1).value = 'BRANCH MANAGER';
+      titlesRow.getCell(1).font = { bold: true, italic: true, size: 8 };
+      titlesRow.getCell(1).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`A${signatureRowNumber + 3}:B${signatureRowNumber + 3}`);
+      
+      // COMPANY OWNER (columns 3,4)
+      titlesRow.getCell(3).value = 'COMPANY OWNER';
+      titlesRow.getCell(3).font = { bold: true, italic: true, size: 8 };
+      titlesRow.getCell(3).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`C${signatureRowNumber + 3}:D${signatureRowNumber + 3}`);
+
+      // Generate filename using user input
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `${userFilename}.xlsx`;
+
+      // Save the file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error exporting to Excel. Please try again.');
+    }
+  };
+
+  // Excel import function
+  const importFromExcel = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      alert('Please select a valid Excel file (.xlsx)');
+      return;
+    }
+
+    setIsImportingExcel(true);
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+
+      const worksheet = workbook.getWorksheet('Billing Statement');
+      if (!worksheet) {
+        alert('Could not find "Billing Statement" worksheet in the Excel file');
+        return;
+      }
+
+      // Find the data rows (starting from row 10, after headers at row 9)
+      const importedData = [];
+      let rowNumber = 10;
+
+      while (true) {
+        const row = worksheet.getRow(rowNumber);
+        const waybillNo = row.getCell(1).value;
+        const destination = row.getCell(3).value;
+        const drNo = row.getCell(4).value;
+        const drDate = row.getCell(5).value;
+        const dv = row.getCell(6).value;
+        
+        // Check if this row has any meaningful data
+        const hasData = waybillNo || destination || drNo || dv;
+        
+        // Stop if we hit a completely empty row or the total row
+        if (!hasData || waybillNo?.toString().includes('TOTAL') || drDate?.toString().includes('TOTAL')) {
+          break;
+        }
+
+        // Extract data from the row
+        const wbDate = row.getCell(2).value;
+        const percent = row.getCell(7).value;
+        const charges = row.getCell(8).value;
+
+        // Convert date values if they're Excel date numbers
+        const formatExcelDate = (excelDate) => {
+          if (!excelDate) return '';
+          if (typeof excelDate === 'number') {
+            // Excel date serial number
+            const date = new Date((excelDate - 25569) * 86400 * 1000);
+            return date.toISOString().split('T')[0];
+          }
+          return excelDate.toString();
+        };
+
+        // Convert numeric values
+        const parseNumeric = (value) => {
+          if (typeof value === 'string') {
+            return parseFloat(value.replace(/,/g, '')) || 0;
+          }
+          return parseFloat(value) || 0;
+        };
+
+        importedData.push({
+          drId: `imported_${Date.now()}_${rowNumber}`, // Generate unique ID for imported items
+          waybillNo: waybillNo.toString(),
+          wbDate: formatExcelDate(wbDate),
+          destination: destination ? destination.toString() : '',
+          drNo: drNo ? drNo.toString() : '',
+          drDate: formatExcelDate(drDate),
+          dv: parseNumeric(dv),
+          percent: parseNumeric(percent),
+          charges: parseNumeric(charges)
+        });
+
+        rowNumber++;
+      }
+
+      if (importedData.length === 0) {
+        alert('No data found in the Excel file');
+        return;
+      }
+
+      // Update billing statement with imported data
+      setBillingStatement(importedData);
+      
+      alert(`Successfully imported ${importedData.length} items from Excel file`);
+      
+    } catch (error) {
+      console.error('Error importing Excel:', error);
+      alert('Error importing Excel file. Please make sure the file format is correct.');
+    } finally {
+      setIsImportingExcel(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Filename modal handlers
+  const handleExportConfirm = () => {
+    setFilenameModalOpen(false);
+    performExport(exportFilename);
+  };
+
+  const handleExportCancel = () => {
+    setFilenameModalOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
       {/* Billing Records Panel */}
@@ -672,28 +1002,71 @@ export default function Billing() {
               </span>
             </span>
           </h1>
-          <div>
-            <button
-              className="mr-4 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
-              onClick={clearAllBillingStatement}
-              title="Clear All Items"
-              disabled={billingStatement.length === 0}
-            >
-              Clear All
-            </button>
-            <button
-              className="mr-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
-              onClick={openSortModal}
-              title="Sort Destinations"
-            >
-              Sort
-            </button>
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              Print
-            </button>
+          <div className="flex flex-col gap-2">
+            {/* First row - Main action buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
+                onClick={clearAllBillingStatement}
+                title="Clear All Items"
+                disabled={billingStatement.length === 0}
+              >
+                Clear All
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
+                onClick={openSortModal}
+                title="Sort Destinations"
+              >
+                Sort
+              </button>
+              <button
+                onClick={handlePrint}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                Print
+              </button>
+            </div>
+            
+            {/* Second row - Excel buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={exportToExcel}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                disabled={billingStatement.length === 0}
+                title="Export to Excel"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Excel
+              </button>
+              <label className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  onChange={importFromExcel}
+                  className="hidden"
+                  disabled={isImportingExcel}
+                />
+                {isImportingExcel ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Import Excel
+                  </>
+                )}
+              </label>
+            </div>
           </div>
 
         </div>
@@ -1084,6 +1457,40 @@ export default function Billing() {
               ) : (
                 'Add DR'
               )}
+            </button>
+          </div>
+        </Modal>
+
+        {/* Filename Modal */}
+        <Modal open={filenameModalOpen} onClose={handleExportCancel}>
+          <h2 className="text-lg font-bold mb-4">Export Excel File</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filename:</label>
+            <input
+              type="text"
+              value={exportFilename}
+              onChange={(e) => setExportFilename(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleExportConfirm();
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={handleExportCancel}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={handleExportConfirm}
+            >
+              Export
             </button>
           </div>
         </Modal>
