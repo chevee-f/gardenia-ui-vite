@@ -1021,7 +1021,7 @@ export default function Billing() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
+    <div className="min-h-screen bg-gray-50 py-5 flex gap-6 px-6">
       {/* Billing Records Panel */}
       <div className="w-[50%] py-8 billing-records">
         <div className="flex items-center justify-between mb-6">
@@ -1141,20 +1141,6 @@ export default function Billing() {
       <div className="w-full bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              <span>
-                Billing Statement
-                <span className="ml-3 text-sm text-gray-500">
-                  ({incompleteItems} items left)
-                </span>
-              </span>
-            </h1>
-            <div className="text-sm text-gray-600 mt-1">
-              Current: <span className="font-medium text-blue-600">{currentStatementName}</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {/* First row - Main action buttons */}
             <div className="flex flex-wrap gap-2">
               <button
                 className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
@@ -1176,7 +1162,43 @@ export default function Billing() {
                 title="Start New Billing Statement"
               >
                 New
+              </button></div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              <span>
+                Billing Statement
+                <span className="ml-3 text-sm text-gray-500">
+                  ({incompleteItems} items left)
+                </span>
+              </span>
+            </h1>
+            <div className="text-sm text-gray-600 mt-1">
+              Current: <span className="font-medium text-blue-600">{currentStatementName}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {/* First row - Main action buttons */}
+            <div className="flex flex-wrap gap-2">
+              {/* <button
+                className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
+                onClick={() => setSaveModalOpen(true)}
+                title="Save Current Billing Statement"
+              >
+                Save
               </button>
+              <button
+                className="px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
+                onClick={() => setLoadModalOpen(true)}
+                title="Load Saved Billing Statement"
+              >
+                Load
+              </button>
+              <button
+                className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"
+                onClick={startNewStatement}
+                title="Start New Billing Statement"
+              >
+                New
+              </button> */}
               {/* <button
                 className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
                 onClick={clearAllBillingStatement}
