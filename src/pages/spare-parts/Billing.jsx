@@ -45,6 +45,9 @@ export default function Billing() {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [saveStatementName, setSaveStatementName] = useState('');
+  
+  // Billing records section toggle
+  const [showBillingRecords, setShowBillingRecords] = useState(true);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -179,6 +182,20 @@ export default function Billing() {
   // Load saved statements on component mount
   useEffect(() => {
     loadSavedStatements();
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Ctrl/Cmd + B to toggle billing records
+      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+        event.preventDefault();
+        setShowBillingRecords(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Modify filtered to use drList instead of allDr
@@ -1023,9 +1040,22 @@ export default function Billing() {
   return (
     <div className="min-h-screen bg-gray-50 py-5 flex gap-6 px-6">
       {/* Billing Records Panel */}
-      <div className="w-[50%] py-8 billing-records">
+      {showBillingRecords && (
+        <div className="w-[50%] py-8 billing-records">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Billing Records</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Billing Records</h1>
+            {/* <button
+              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 border border-gray-200"
+              onClick={() => setShowBillingRecords(false)}
+              title="Hide Billing Records (Ctrl+B)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Hide
+            </button> */}
+          </div>
           <button
             onClick={openManualAddModal}
             disabled={isSavingDr}
@@ -1135,13 +1165,37 @@ export default function Billing() {
             Next
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Billing Statement Panel */}
-      <div className="w-full bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col">
+      <div className={`${showBillingRecords ? 'w-full' : 'w-full'} bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col`}>
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex flex-wrap gap-2">
+              <button
+                className={`px-4 py-2 rounded border ${
+                  showBillingRecords 
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200' 
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200'
+                }`}
+                onClick={() => setShowBillingRecords(!showBillingRecords)}
+                title={showBillingRecords ? "Hide Billing Records (Ctrl+B)" : "Show Billing Records (Ctrl+B)"}
+              >
+                {showBillingRecords ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
               <button
                 className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
                 onClick={() => setSaveModalOpen(true)}
@@ -1162,7 +1216,8 @@ export default function Billing() {
                 title="Start New Billing Statement"
               >
                 New
-              </button></div>
+              </button>
+            </div>
             <h1 className="text-2xl font-bold text-gray-900">
               <span>
                 Billing Statement
