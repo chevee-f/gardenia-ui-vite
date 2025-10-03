@@ -38,6 +38,13 @@ export default function Billing() {
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [filenameModalOpen, setFilenameModalOpen] = useState(false);
   const [exportFilename, setExportFilename] = useState('BILLING NO.');
+  
+  // Save/Load functionality state
+  const [currentStatementName, setCurrentStatementName] = useState('Untitled');
+  const [savedStatements, setSavedStatements] = useState({});
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [saveStatementName, setSaveStatementName] = useState('');
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -73,36 +80,45 @@ export default function Billing() {
 
   // Auto-save billing statement and DR list to localStorage whenever they change
   useEffect(() => {
-    if (billingStatement.length > 0) {
+    if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
       const saveData = {
         billingStatement,
         drList,
         timestamp: new Date().toISOString(),
         version: '1.0'
       };
-      localStorage.setItem("billingStatement", JSON.stringify(saveData));
-      console.log('Billing statement auto-saved:', billingStatement.length, 'items');
+      
+      // Update the saved statements with current data
+      const updatedSavedStatements = {
+        ...savedStatements,
+        [currentStatementName]: saveData
+      };
+      
+      setSavedStatements(updatedSavedStatements);
+      localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+      // console.log(`Billing statement "${currentStatementName}" auto-saved:`, billingStatement.length, 'items');
     }
-  }, [billingStatement, drList]);
+  }, [billingStatement, drList, currentStatementName, savedStatements]);
 
   // Create periodic backup every 5 minutes
   useEffect(() => {
     const backupInterval = setInterval(() => {
-      if (billingStatement.length > 0) {
+      if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
         const backupData = {
           billingStatement,
           drList,
           timestamp: new Date().toISOString(),
           version: '1.0',
-          isBackup: true
+          isBackup: true,
+          statementName: currentStatementName
         };
         localStorage.setItem("billingStatement_backup", JSON.stringify(backupData));
-        console.log('Backup created at:', new Date().toLocaleTimeString());
+        console.log(`Backup created for "${currentStatementName}" at:`, new Date().toLocaleTimeString());
       }
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(backupInterval);
-  }, [billingStatement, drList]);
+  }, [billingStatement, drList, currentStatementName]);
 
   // Auto-load billing statement from localStorage on component mount
   useEffect(() => {
@@ -159,6 +175,11 @@ export default function Billing() {
       }
     }
   }, []); // Only run once on mount
+
+  // Load saved statements on component mount
+  useEffect(() => {
+    loadSavedStatements();
+  }, []);
 
   // Modify filtered to use drList instead of allDr
   const filtered = useMemo(() => {
@@ -253,6 +274,97 @@ export default function Billing() {
       localStorage.removeItem("billingStatement_backup");
       console.log('All billing statement items cleared');
     }
+  };
+
+  // Save/Load functionality
+  const loadSavedStatements = () => {
+    try {
+      const saved = localStorage.getItem("savedBillingStatements");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSavedStatements(parsed);
+      }
+      
+      const current = localStorage.getItem("currentStatementName");
+      if (current) {
+        setCurrentStatementName(current);
+      }
+    } catch (error) {
+      console.error('Error loading saved statements:', error);
+    }
+  };
+
+  const saveCurrentStatement = (statementName) => {
+    if (!statementName.trim()) {
+      alert('Please enter a name for the billing statement');
+      return;
+    }
+
+    const statementData = {
+      billingStatement,
+      drList,
+      timestamp: new Date().toISOString(),
+      version: '1.0'
+    };
+
+    const updatedSavedStatements = {
+      ...savedStatements,
+      [statementName]: statementData
+    };
+
+    setSavedStatements(updatedSavedStatements);
+    setCurrentStatementName(statementName);
+    
+    // Save to localStorage
+    localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+    localStorage.setItem("currentStatementName", statementName);
+    
+    console.log(`Billing statement "${statementName}" saved with ${billingStatement.length} items`);
+  };
+
+  const loadStatement = (statementName) => {
+    const statementData = savedStatements[statementName];
+    if (statementData) {
+      setBillingStatement(statementData.billingStatement || []);
+      if (statementData.drList) {
+        setDrList(statementData.drList);
+      }
+      setCurrentStatementName(statementName);
+      localStorage.setItem("currentStatementName", statementName);
+      console.log(`Loaded billing statement "${statementName}" with ${statementData.billingStatement?.length || 0} items`);
+    }
+  };
+
+  const deleteStatement = (statementName) => {
+    if (window.confirm(`Are you sure you want to delete "${statementName}"? This action cannot be undone.`)) {
+      const updatedSavedStatements = { ...savedStatements };
+      delete updatedSavedStatements[statementName];
+      
+      setSavedStatements(updatedSavedStatements);
+      localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+      
+      // If we're deleting the current statement, clear it
+      if (currentStatementName === statementName) {
+        setBillingStatement([]);
+        setCurrentStatementName('Untitled');
+        localStorage.removeItem("currentStatementName");
+      }
+      
+      console.log(`Deleted billing statement "${statementName}"`);
+    }
+  };
+
+  const startNewStatement = () => {
+    if (billingStatement.length > 0) {
+      if (!window.confirm('Starting a new billing statement will clear the current one. Do you want to continue?')) {
+        return;
+      }
+    }
+    
+    setBillingStatement([]);
+    setCurrentStatementName('Untitled');
+    localStorage.removeItem("currentStatementName");
+    console.log('Started new billing statement');
   };
 
   // Filter billing statement based on search
@@ -424,6 +536,23 @@ export default function Billing() {
     const month = date.toLocaleString('en-US', { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day}-${month}-${year}`;
+  }
+
+  function formatDateForInput(dateStr) {
+    if (!dateStr) return "";
+    // If it's already in yyyy-MM-dd format, return as is
+    if (dateStr.includes('-') && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+    // Otherwise, try to convert to yyyy-MM-dd format
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date)) return "";
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      console.warn('Error formatting date for input:', dateStr, error);
+      return "";
+    }
   }
 
   const [editDestinationPopup, setEditDestinationPopup] = useState({ open: false, drId: null, value: "" });
@@ -1011,25 +1140,51 @@ export default function Billing() {
       {/* Billing Statement Panel */}
       <div className="w-full bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            <span>
-              Billing Statement
-              <span className="ml-3 text-sm text-gray-500">
-                ({incompleteItems} items left)
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              <span>
+                Billing Statement
+                <span className="ml-3 text-sm text-gray-500">
+                  ({incompleteItems} items left)
+                </span>
               </span>
-            </span>
-          </h1>
+            </h1>
+            <div className="text-sm text-gray-600 mt-1">
+              Current: <span className="font-medium text-blue-600">{currentStatementName}</span>
+            </div>
+          </div>
           <div className="flex flex-col gap-2">
             {/* First row - Main action buttons */}
             <div className="flex flex-wrap gap-2">
               <button
+                className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
+                onClick={() => setSaveModalOpen(true)}
+                title="Save Current Billing Statement"
+              >
+                Save
+              </button>
+              <button
+                className="px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
+                onClick={() => setLoadModalOpen(true)}
+                title="Load Saved Billing Statement"
+              >
+                Load
+              </button>
+              <button
+                className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"
+                onClick={startNewStatement}
+                title="Start New Billing Statement"
+              >
+                New
+              </button>
+              {/* <button
                 className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
                 onClick={clearAllBillingStatement}
                 title="Clear All Items"
                 disabled={billingStatement.length === 0}
               >
                 Clear All
-              </button>
+              </button> */}
               <button
                 className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
                 onClick={openSortModal}
@@ -1161,7 +1316,7 @@ export default function Billing() {
                     <td className="px-3 py-3 relative">
                       <input
                         type="date"
-                        value={item.wbDate}
+                        value={formatDateForInput(item.wbDate)}
                         onChange={e => updateBillingItem(item.drId, 'wbDate', e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                       />
@@ -1186,7 +1341,7 @@ export default function Billing() {
                     <td className="px-3 py-3 relative">
                       <input
                         type="date"
-                        value={item.drDate}
+                        value={formatDateForInput(item.drDate)}
                         onChange={e => updateBillingItem(item.drId, 'drDate', e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                       />
@@ -1511,6 +1666,108 @@ export default function Billing() {
             </button>
           </div>
         </Modal>
+
+        {/* Save Billing Statement Modal */}
+        <Modal open={saveModalOpen} onClose={() => setSaveModalOpen(false)}>
+          <h2 className="text-lg font-bold mb-4">Save Billing Statement</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Statement Name:</label>
+            <input
+              type="text"
+              value={saveStatementName}
+              onChange={(e) => setSaveStatementName(e.target.value)}
+              placeholder="Enter billing statement name"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  saveCurrentStatement(saveStatementName);
+                  setSaveModalOpen(false);
+                  setSaveStatementName('');
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={() => {
+                setSaveModalOpen(false);
+                setSaveStatementName('');
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={() => {
+                saveCurrentStatement(saveStatementName);
+                setSaveModalOpen(false);
+                setSaveStatementName('');
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </Modal>
+
+        {/* Load Billing Statement Modal */}
+        <Modal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}>
+          <h2 className="text-lg font-bold mb-4">Load Billing Statement</h2>
+          {Object.keys(savedStatements).length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              No saved billing statements found.
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              <div className="space-y-2">
+                {Object.entries(savedStatements).map(([name, data]) => (
+                  <div
+                    key={name}
+                    className={`flex items-center justify-between p-3 border rounded-lg ${
+                      currentStatementName === name ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{name}</div>
+                      <div className="text-sm text-gray-500">
+                        {data.billingStatement?.length || 0} items • 
+                        Saved {data.timestamp ? new Date(data.timestamp).toLocaleDateString() : 'Unknown'}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        onClick={() => {
+                          loadStatement(name);
+                          setLoadModalOpen(false);
+                        }}
+                        disabled={currentStatementName === name}
+                      >
+                        {currentStatementName === name ? 'Current' : 'Load'}
+                      </button>
+                      <button
+                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        onClick={() => deleteStatement(name)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={() => setLoadModalOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+
         {/* Hidden print version */}
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
