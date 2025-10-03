@@ -563,74 +563,122 @@ export default function Billing() {
   // Actual export function with filename
   const performExport = async (userFilename) => {
     try {
-      // Create a new workbook and worksheet
+      // Create a new workbook
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Billing Statement');
-
-      // Add company header information
-      worksheet.getCell('A1').value = 'TRIMOTORS TECHNOLOGY CORP.';
-      worksheet.getCell('A1').font = { bold: true, size: 12 };
-
-      worksheet.getCell('A2').value = 'KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG MUNTINLUPA MANILA';
-      worksheet.getCell('A2').alignment = { wrapText: true };
       
-      // Merge columns 1, 2, 3 in row 2
-      worksheet.mergeCells('A2:C2');
+      // Split billing statement into chunks of 22 items (like print functionality)
+      const itemsPerPage = 22;
+      const totalPages = Math.ceil(billingStatement.length / itemsPerPage);
       
-      // Set font properties after merging
-      worksheet.getCell('A2').font = { bold: true, size: 6, name: 'Arial' };
-
-      worksheet.getCell('A3').value = '';
-
-      // Set column widths manually
-      worksheet.getColumn(1).width = 10; // Waybill No
-      worksheet.getColumn(2).width = 10; // WB Date
-      worksheet.getColumn(3).width = 12; // Destination
-      worksheet.getColumn(4).width = 12; // DR No
-      worksheet.getColumn(5).width = 10; // DR Date
-      worksheet.getColumn(6).width = 14; // DV
-      worksheet.getColumn(7).width = 10; // Percent
-      worksheet.getColumn(8).width = 12; // Charges
-
-      // Manually add table headers at row 9
-      const headers = ['Waybill No', 'WB Date', 'Destination', 'DR No', 'DR Date', 'DV', 'Percent', 'Charges'];
-      const headerRow = worksheet.getRow(9);
-      
-      headers.forEach((header, colIndex) => {
-        const cell = headerRow.getCell(colIndex + 1);
-        cell.value = header;
-        cell.font = { bold: true };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFE0E0E0' } // Light gray
-        };
-      });
-
-      // Add data rows starting from row 10
-      billingStatement.forEach((item, index) => {
-        const rowNumber = 10 + index; // Start from row 10
-        const row = worksheet.getRow(rowNumber);
+      // Create worksheets for each page
+      for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        const startIndex = pageIndex * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, billingStatement.length);
+        const pageItems = billingStatement.slice(startIndex, endIndex);
         
-        // Set cell values
-        row.getCell(1).value = item.waybillNo || '';
-        row.getCell(2).value = item.wbDate ? formatDateShort(item.wbDate) : '';
-        row.getCell(3).value = item.destination || '';
-        row.getCell(4).value = item.drNo || '';
-        row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
-        row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
-        row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-        row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Calculate page totals
+        const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
+        const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
+        
+        // Create worksheet for this page
+        const worksheet = workbook.addWorksheet(`Page ${pageIndex + 1}`);
 
-        // Add borders and alignment to data cells
-        row.eachCell((cell, colNumber) => {
+        // Add company header information
+        worksheet.getCell('A1').value = 'TRIMOTORS TECHNOLOGY CORP.';
+        worksheet.getCell('A1').font = { bold: true, size: 12 };
+
+        worksheet.getCell('A2').value = 'KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG MUNTINLUPA MANILA';
+        worksheet.getCell('A2').alignment = { wrapText: true };
+        
+        // Merge columns 1, 2, 3 in row 2
+        worksheet.mergeCells('A2:C2');
+        
+        // Set font properties after merging
+        worksheet.getCell('A2').font = { bold: true, size: 6, name: 'Arial' };
+
+        worksheet.getCell('A3').value = '';
+
+        // Set column widths manually
+        worksheet.getColumn(1).width = 10; // Waybill No
+        worksheet.getColumn(2).width = 10; // WB Date
+        worksheet.getColumn(3).width = 12; // Destination
+        worksheet.getColumn(4).width = 12; // DR No
+        worksheet.getColumn(5).width = 10; // DR Date
+        worksheet.getColumn(6).width = 14; // DV
+        worksheet.getColumn(7).width = 10; // Percent
+        worksheet.getColumn(8).width = 12; // Charges
+
+        // Manually add table headers at row 9
+        const headers = ['Waybill No', 'WB Date', 'Destination', 'DR No', 'DR Date', 'DV', 'Percent', 'Charges'];
+        const headerRow = worksheet.getRow(9);
+        
+        headers.forEach((header, colIndex) => {
+          const cell = headerRow.getCell(colIndex + 1);
+          cell.value = header;
+          cell.font = { bold: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' } // Light gray
+          };
+        });
+
+        // Add data rows starting from row 10
+        pageItems.forEach((item, index) => {
+          const rowNumber = 10 + index; // Start from row 10
+          const row = worksheet.getRow(rowNumber);
+          
+          // Set cell values
+          row.getCell(1).value = item.waybillNo || '';
+          row.getCell(2).value = item.wbDate ? formatDateShort(item.wbDate) : '';
+          row.getCell(3).value = item.destination || '';
+          row.getCell(4).value = item.drNo || '';
+          row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
+          row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
+          row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+          row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          // Add borders and alignment to data cells
+          row.eachCell((cell, colNumber) => {
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+            
+            // Set alignment based on column
+            if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
+              cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            } else { // All other columns (centered)
+              cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            }
+          });
+        });
+
+        // Add total row for this page
+        const totalRowNumber = 10 + pageItems.length; // After all data rows for this page
+        const totalRow = worksheet.getRow(totalRowNumber);
+        
+        // Set total row values
+        totalRow.getCell(1).value = '';
+        totalRow.getCell(2).value = '';
+        totalRow.getCell(3).value = '';
+        totalRow.getCell(4).value = '';
+        totalRow.getCell(5).value = 'TOTAL:';
+        totalRow.getCell(6).value = pageTotalDV.toLocaleString(undefined, { minimumFractionDigits: 2 });
+        totalRow.getCell(7).value = '';
+        totalRow.getCell(8).value = pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Style the total row
+        totalRow.eachCell((cell, colNumber) => {
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
@@ -644,99 +692,68 @@ export default function Billing() {
           } else { // All other columns (centered)
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
           }
+          
+          // Bold the total values
+          if (colNumber === 5 || colNumber === 6 || colNumber === 8) { // TOTAL:, DV total, Charges total
+            cell.font = { bold: true };
+          }
         });
-      });
 
-      // Add total row
-      const totalRowNumber = 10 + billingStatement.length; // After all data rows
-      const totalRow = worksheet.getRow(totalRowNumber);
-      
-      // Set total row values
-      totalRow.getCell(1).value = '';
-      totalRow.getCell(2).value = '';
-      totalRow.getCell(3).value = '';
-      totalRow.getCell(4).value = '';
-      totalRow.getCell(5).value = 'TOTAL:';
-      totalRow.getCell(6).value = totalDV.toLocaleString(undefined, { minimumFractionDigits: 2 });
-      totalRow.getCell(7).value = '';
-      totalRow.getCell(8).value = totalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Add signature section after 3 empty rows
+        const signatureRowNumber = totalRowNumber + 4; // 3 empty rows after total
+        const signatureRow = worksheet.getRow(signatureRowNumber);
+        
+        // Add signature labels
+        signatureRow.getCell(1).value = 'PREPARED BY:';
+        signatureRow.getCell(3).value = '             CHECKED BY:';
+        signatureRow.getCell(7).value = 'RECEIVED BY:';
+        
+        // Style signature labels
+        signatureRow.getCell(1).font = { bold: true };
+        signatureRow.getCell(3).font = { bold: true };
+        signatureRow.getCell(7).font = { bold: true };
 
-      // Style the total row
-      totalRow.eachCell((cell, colNumber) => {
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
+        // Add signature lines row (next row)
+        const signatureLineRow = worksheet.getRow(signatureRowNumber + 1);
+        
+        // Add bottom border to columns 7 and 8 for signature lines
+        signatureLineRow.getCell(7).border = {
+          bottom: { style: 'thin' }
         };
+        signatureLineRow.getCell(8).border = {
+          bottom: { style: 'thin' }
+        };
+
+        // Add signature names row
+        const signatureNamesRow = worksheet.getRow(signatureRowNumber + 2);
         
-        // Set alignment based on column
-        if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
-          cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        } else { // All other columns (centered)
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        }
+        // AILEEN MATUB (columns 1,2)
+        signatureNamesRow.getCell(1).value = 'AILEEN MATUB';
+        signatureNamesRow.getCell(1).font = { bold: true, size: 10 };
+        signatureNamesRow.getCell(1).alignment = { horizontal: 'center' };
+        worksheet.mergeCells(`A${signatureRowNumber + 2}:B${signatureRowNumber + 2}`);
         
-        // Bold the total values
-        if (colNumber === 5 || colNumber === 6 || colNumber === 8) { // TOTAL:, DV total, Charges total
-          cell.font = { bold: true };
-        }
-      });
+        // ERVY YPARRAGUIRRE (columns 3,4)
+        signatureNamesRow.getCell(3).value = 'ERVY YPARRAGUIRRE';
+        signatureNamesRow.getCell(3).font = { bold: true, size: 10 };
+        signatureNamesRow.getCell(3).alignment = { horizontal: 'center' };
+        worksheet.mergeCells(`C${signatureRowNumber + 2}:D${signatureRowNumber + 2}`);
 
-      // Add signature section after 3 empty rows
-      const signatureRowNumber = totalRowNumber + 4; // 3 empty rows after total
-      const signatureRow = worksheet.getRow(signatureRowNumber);
-      
-      // Add signature labels
-      signatureRow.getCell(1).value = 'PREPARED BY:';
-      signatureRow.getCell(3).value = '             CHECKED BY:';
-      signatureRow.getCell(7).value = 'RECEIVED BY:';
-      
-      // Style signature labels
-      signatureRow.getCell(1).font = { bold: true };
-      signatureRow.getCell(3).font = { bold: true };
-      signatureRow.getCell(7).font = { bold: true };
-
-      // Add signature lines row (next row)
-      const signatureLineRow = worksheet.getRow(signatureRowNumber + 1);
-      
-      // Add bottom border to columns 7 and 8 for signature lines
-      signatureLineRow.getCell(7).border = {
-        bottom: { style: 'thin' }
-      };
-      signatureLineRow.getCell(8).border = {
-        bottom: { style: 'thin' }
-      };
-
-      // Add signature names row
-      const signatureNamesRow = worksheet.getRow(signatureRowNumber + 2);
-      
-      // AILEEN MATUB (columns 1,2)
-      signatureNamesRow.getCell(1).value = 'AILEEN MATUB';
-      signatureNamesRow.getCell(1).font = { bold: true, size: 10 };
-      signatureNamesRow.getCell(1).alignment = { horizontal: 'center' };
-      worksheet.mergeCells(`A${signatureRowNumber + 2}:B${signatureRowNumber + 2}`);
-      
-      // ERVY YPARRAGUIRRE (columns 3,4)
-      signatureNamesRow.getCell(3).value = 'ERVY YPARRAGUIRRE';
-      signatureNamesRow.getCell(3).font = { bold: true, size: 10 };
-      signatureNamesRow.getCell(3).alignment = { horizontal: 'center' };
-      worksheet.mergeCells(`C${signatureRowNumber + 2}:D${signatureRowNumber + 2}`);
-
-      // Add titles row
-      const titlesRow = worksheet.getRow(signatureRowNumber + 3);
-      
-      // BRANCH MANAGER (columns 1,2)
-      titlesRow.getCell(1).value = 'BRANCH MANAGER';
-      titlesRow.getCell(1).font = { bold: true, italic: true, size: 8 };
-      titlesRow.getCell(1).alignment = { horizontal: 'center' };
-      worksheet.mergeCells(`A${signatureRowNumber + 3}:B${signatureRowNumber + 3}`);
-      
-      // COMPANY OWNER (columns 3,4)
-      titlesRow.getCell(3).value = 'COMPANY OWNER';
-      titlesRow.getCell(3).font = { bold: true, italic: true, size: 8 };
-      titlesRow.getCell(3).alignment = { horizontal: 'center' };
-      worksheet.mergeCells(`C${signatureRowNumber + 3}:D${signatureRowNumber + 3}`);
+        // Add titles row
+        const titlesRow = worksheet.getRow(signatureRowNumber + 3);
+        
+        // BRANCH MANAGER (columns 1,2)
+        titlesRow.getCell(1).value = 'BRANCH MANAGER';
+        titlesRow.getCell(1).font = { bold: true, italic: true, size: 8 };
+        titlesRow.getCell(1).alignment = { horizontal: 'center' };
+        worksheet.mergeCells(`A${signatureRowNumber + 3}:B${signatureRowNumber + 3}`);
+        
+        // COMPANY OWNER (columns 3,4)
+        titlesRow.getCell(3).value = 'COMPANY OWNER';
+        titlesRow.getCell(3).font = { bold: true, italic: true, size: 8 };
+        titlesRow.getCell(3).alignment = { horizontal: 'center' };
+        worksheet.mergeCells(`C${signatureRowNumber + 3}:D${signatureRowNumber + 3}`);
+      }
 
       // Generate filename using user input
       const currentDate = new Date().toISOString().split('T')[0];
