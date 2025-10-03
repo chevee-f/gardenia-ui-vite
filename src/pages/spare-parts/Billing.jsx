@@ -91,17 +91,20 @@ export default function Billing() {
         version: '1.0'
       };
       
-      // Update the saved statements with current data
-      const updatedSavedStatements = {
-        ...savedStatements,
-        [currentStatementName]: saveData
-      };
-      
-      setSavedStatements(updatedSavedStatements);
-      localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
-      // console.log(`Billing statement "${currentStatementName}" auto-saved:`, billingStatement.length, 'items');
+      // Update the saved statements with current data using functional update
+      setSavedStatements(prevSavedStatements => {
+        const updatedSavedStatements = {
+          ...prevSavedStatements,
+          [currentStatementName]: saveData
+        };
+        
+        localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+        // console.log(`Billing statement "${currentStatementName}" auto-saved:`, billingStatement.length, 'items');
+        
+        return updatedSavedStatements;
+      });
     }
-  }, [billingStatement, drList, currentStatementName, savedStatements]);
+  }, [billingStatement, drList, currentStatementName]);
 
   // Create periodic backup every 5 minutes
   useEffect(() => {
@@ -147,7 +150,36 @@ export default function Billing() {
       return false;
     };
 
-    // Try to load main data first
+    // First, try to load from the new save/load system
+    const currentStatementName = localStorage.getItem("currentStatementName");
+    const savedStatements = localStorage.getItem("savedBillingStatements");
+    
+    if (currentStatementName && savedStatements) {
+      try {
+        const parsedStatements = JSON.parse(savedStatements);
+        const currentStatement = parsedStatements[currentStatementName];
+        
+        if (currentStatement && currentStatement.billingStatement) {
+          setBillingStatement(currentStatement.billingStatement);
+          if (currentStatement.drList) {
+            setDrList(currentStatement.drList);
+          }
+          setCurrentStatementName(currentStatementName);
+          setSavedStatements(parsedStatements);
+          console.log(`Restored current billing statement "${currentStatementName}" with ${currentStatement.billingStatement.length} items`);
+          return; // Exit early if we successfully loaded from new system
+        } else {
+          console.warn(`Current statement "${currentStatementName}" not found in saved statements`);
+        }
+      } catch (error) {
+        console.error('Error loading from save/load system:', error);
+        // Clear corrupted data
+        localStorage.removeItem("currentStatementName");
+        localStorage.removeItem("savedBillingStatements");
+      }
+    }
+
+    // Fallback to old system if new system doesn't have data
     const saved = localStorage.getItem("billingStatement");
     if (saved) {
       try {
@@ -179,10 +211,7 @@ export default function Billing() {
     }
   }, []); // Only run once on mount
 
-  // Load saved statements on component mount
-  useEffect(() => {
-    loadSavedStatements();
-  }, []);
+  // Load saved statements on component mount (handled in main auto-load effect above)
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -300,11 +329,6 @@ export default function Billing() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setSavedStatements(parsed);
-      }
-      
-      const current = localStorage.getItem("currentStatementName");
-      if (current) {
-        setCurrentStatementName(current);
       }
     } catch (error) {
       console.error('Error loading saved statements:', error);
