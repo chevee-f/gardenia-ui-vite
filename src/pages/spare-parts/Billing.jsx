@@ -517,7 +517,7 @@ export default function Billing() {
             <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
             <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
           </div>
-          <div style="visibility: hiddeen">
+          <div style="visibility: hidden">
             <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
             <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
@@ -1901,7 +1901,7 @@ export default function Billing() {
                for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
                  const pageItems = billingStatement.slice(i, i + itemsPerPage);
                  const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
-                 const pageTotalCharges = 32122.56; // = pageItems.reduce((sum, item) => sum + item.charges, 0);
+                 const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
                  
                  pages.push(
                    <div key={i} style={{ position: 'relative', pageBreakAfter: 'always', minHeight: '1200px' }}>
@@ -2003,29 +2003,29 @@ export default function Billing() {
                      </div>
                      
                      {/* Total Sales */}
-                     <div style={{ color: 'red',position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                     <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
 
                     {/* LEFT: VAT */}
-                    <div style={{ color: 'red', position: 'absolute', top: '1015px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                    <div style={{ position: 'absolute', top: '1015px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
                     {/* Less:VAT */}
-                    <div style={{ color: 'red', position: 'absolute', top: '1010px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                    <div style={{ position: 'absolute', top: '1010px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
 
                     {/* LEFT: VATable Sales */}
-                    <div style={{ color: 'red', position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
+                    <div style={{ position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
                      {/* Amount: Net of VAT */}
-                     <div style={{ color: 'red', position: 'absolute', top: '1040px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
+                     <div style={{ position: 'absolute', top: '1040px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
                      
                      {/* Less: Discound */}
                      {/* <div style={{ position: 'absolute', top: '1075px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div> */}
 
                     {/* Add: VAT */}
-                    <div style={{ color: 'red', position: 'absolute', top: '1115px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                    <div style={{ position: 'absolute', top: '1115px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
 
                     {/* Less: Withholding Tax */}
-                    <div style={{ color: 'red', position: 'absolute', top: '1155px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))))}</div>
+                    <div style={{ position: 'absolute', top: '1155px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))))}</div>
 
                     {/* Total Amount Due */}
-                    <div style={{ color: 'red', position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getTotalAmountDue(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))))}</div>
+                    <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getTotalAmountDue(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))))}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
