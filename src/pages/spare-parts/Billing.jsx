@@ -1061,15 +1061,15 @@ export default function Billing() {
     setFilenameModalOpen(false);
   };
 
-  const getVAT = (amount) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount.replace(/,/g, '')) : parseFloat(amount);
-    return (numAmount * 0.12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const getNetOfVAT = (totalSales) => {
+    const numAmount = typeof totalSales === 'string' ? parseFloat(totalSales.replace(/,/g, '')) : parseFloat(totalSales);
+    return (numAmount / 1.12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const getNetOfVAT = (amount, vat) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount.replace(/,/g, '')) : parseFloat(amount);
-    const numVat = typeof vat === 'string' ? parseFloat(vat.replace(/,/g, '')) : parseFloat(vat);
-    return (numAmount - numVat).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const getVAT = (totalSales) => {
+    const numAmount = typeof totalSales === 'string' ? parseFloat(totalSales.replace(/,/g, '')) : parseFloat(totalSales);
+    const netOfVAT = numAmount / 1.12;
+    return (netOfVAT * 0.12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const getWithholdingTax = (netOfVAT) => {
@@ -2011,9 +2011,9 @@ export default function Billing() {
                     <div style={{ position: 'absolute', top: '1010px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
 
                     {/* LEFT: VATable Sales */}
-                    <div style={{ position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
-                     {/* Amount: Net of VAT */}
-                     <div style={{ position: 'absolute', top: '1040px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
+                    <div style={{ position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                    {/* Amount: Net of VAT */}
+                    <div style={{ position: 'absolute', top: '1040px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
                      
                      {/* Less: Discound */}
                      {/* <div style={{ position: 'absolute', top: '1075px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div> */}
@@ -2022,10 +2022,10 @@ export default function Billing() {
                     <div style={{ position: 'absolute', top: '1115px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
 
                     {/* Less: Withholding Tax */}
-                    <div style={{ position: 'absolute', top: '1155px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))))}</div>
+                    <div style={{ position: 'absolute', top: '1155px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
 
                     {/* Total Amount Due */}
-                    <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getTotalAmountDue(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))))}</div>
+                    <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getTotalAmountDue(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))))}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
