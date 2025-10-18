@@ -48,6 +48,9 @@ export default function Billing() {
   
   // Billing records section toggle
   const [showBillingRecords, setShowBillingRecords] = useState(true);
+  
+  // Print options modal
+  const [printOptionsModalOpen, setPrintOptionsModalOpen] = useState(false);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -496,7 +499,15 @@ export default function Billing() {
 
   const printRef = useRef();
   const newPrintRef = useRef();
+  
+  // Open print options modal
   const handlePrint = () => {
+    setPrintOptionsModalOpen(true);
+  };
+
+  // Print without labels (current behavior)
+  const printWithoutLabels = () => {
+    setPrintOptionsModalOpen(false);
     const printContent = newPrintRef.current.innerHTML;
     const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
@@ -545,6 +556,81 @@ export default function Billing() {
             <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
           </div>
           ${printContent}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    // printWindow.print();
+    // printWindow.close();
+  };
+
+  // Print with labels
+  const printWithLabels = () => {
+    setPrintOptionsModalOpen(false);
+    const printContent = newPrintRef.current.innerHTML;
+    const printWindow = window.open("", "", "width=920,height=650");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Billing Statement (With Labels)</title>
+          <style>
+            table { border-collapse: collapse; width: 100%; font-family: Arial; font-size: 12px; }
+            th, td { border: 1px solid #000; padding: 4px; text-align: left; }
+            thead { background: #eee; }
+          </style>
+        </head>
+        <body style="margin: 0; padding: 0;">
+          <div style="visibility: hidden">
+            <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
+            <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
+            <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
+            <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
+            <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
+          </div>
+          <div style="visibility: hidden">
+            <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 300px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 400px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 500px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 600px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 700px; background-color: red; width: 1px; height: 1200px;"></div>
+            <div style="position: absolute; top: 0; left: 800px; background-color: red; width: 1px; height: 1200px;"></div>
+            
+            <div style="position: absolute; top: 0px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 400px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 500px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 600px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 700px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 800px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 900px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1000px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1250px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+            <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
+          </div>
+          ${printContent}
+          
+          <!-- Labels for header section -->
+          <div style="position: absolute; top: 145px; left: 550px; fontSize: 14px; fontWeight: bold;">Date:</div>
+          <div style="position: absolute; top: 221px; left: 50px; fontSize: 14px; fontWeight: bold;">Registered Name:</div>
+          <div style="position: absolute; top: 297px; left: 50px; fontSize: 14px; fontWeight: bold;">Business Address:</div>
+          
+          <!-- Labels for financial calculations -->
+          <div style="position: absolute; top: 970px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Sales:</div>
+          <div style="position: absolute; top: 975px; left: 50px; fontSize: 14px; fontWeight: bold;">VATable Sales:</div>
+          <div style="position: absolute; top: 1010px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: VAT:</div>
+          <div style="position: absolute; top: 1015px; left: 50px; fontSize: 14px; fontWeight: bold;">VAT:</div>
+          <div style="position: absolute; top: 1040px; left: 550px; fontSize: 14px; fontWeight: bold;">Amount: Net of VAT:</div>
+          <div style="position: absolute; top: 1115px; left: 550px; fontSize: 14px; fontWeight: bold;">Add: VAT:</div>
+          <div style="position: absolute; top: 1155px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: Withholding Tax:</div>
+          <div style="position: absolute; top: 1200px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Amount Due:</div>
         </body>
       </html>
     `);
@@ -1887,6 +1973,40 @@ export default function Billing() {
               onClick={() => setLoadModalOpen(false)}
             >
               Close
+            </button>
+          </div>
+        </Modal>
+
+        {/* Print Options Modal */}
+        <Modal open={printOptionsModalOpen} onClose={() => setPrintOptionsModalOpen(false)}>
+          <h2 className="text-lg font-bold mb-4">Print Options</h2>
+          <p className="text-gray-600 mb-6">Choose how you would like to print the billing statement:</p>
+          <div className="space-y-3">
+            <button
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+              onClick={printWithoutLabels}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Print Invoice
+            </button>
+            <button
+              className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+              onClick={printWithLabels}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Print Copy
+            </button>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={() => setPrintOptionsModalOpen(false)}
+            >
+              Cancel
             </button>
           </div>
         </Modal>
