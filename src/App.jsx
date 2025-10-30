@@ -8,6 +8,8 @@ import Gardenia from './pages/gardenia/gardenia';
 import AddTicketPage from './pages/gardenia/add/gardenia-new';
 import SpareParts from './pages/spare-parts/SpareParts';
 import Billing from './pages/spare-parts/Billing';
+import Cykris from './pages/cykris/Cykris';
+import CykrisBilling from './pages/cykris/CykrisBilling';
 
 function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -26,6 +28,8 @@ function App() {
               <Route path='/gardenia/new' element={<AddTicketPage />} />
               <Route path='/spare-parts' element={<SpareParts />} />
               <Route path='/billing' element={<Billing />} />
+              <Route path='/cykris' element={<Cykris />} />
+              <Route path='/cykris-billing' element={<CykrisBilling />} />
               {/* other routes */}
             </Routes>
           </main>

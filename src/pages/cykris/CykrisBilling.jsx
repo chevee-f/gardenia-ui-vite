@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useAction } from "convex/react";
+﻿import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect, useRef } from "react";
 import ExcelJS from 'exceljs';
@@ -16,7 +16,7 @@ function Modal({ open, onClose, children }) {
   );
 }
 
-export default function Billing() {
+export default function CykrisBilling() {
   const allDr = useQuery(api.dr.getAllDr) || [];
   const saveDr = useMutation(api.dr.saveDr);
   const [search, setSearch] = useState("");
@@ -38,24 +38,6 @@ export default function Billing() {
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [filenameModalOpen, setFilenameModalOpen] = useState(false);
   const [exportFilename, setExportFilename] = useState('BILLING NO.');
-  
-  // Save/Load functionality state
-  const [currentStatementName, setCurrentStatementName] = useState('Untitled');
-  const [savedStatements, setSavedStatements] = useState({});
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
-  const [loadModalOpen, setLoadModalOpen] = useState(false);
-  const [saveStatementName, setSaveStatementName] = useState('');
-  
-  // Billing records section toggle
-  const [showBillingRecords, setShowBillingRecords] = useState(true);
-  
-  // Print options modal
-  const [printOptionsModalOpen, setPrintOptionsModalOpen] = useState(false);
-  const [emailSending, setEmailSending] = useState(false);
-
-  // Email notification hooks
-  const sendBillingEmail = useAction(api.sendEmail.sendBillingEmail);
-  const recordBillingPrint = useMutation(api.billing.recordBillingPrint);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -89,57 +71,45 @@ export default function Billing() {
 
   // Removed expensive sorting useEffect - was causing lag with 40+ items
 
-  // Auto-save billing statement and DR list to localStorage whenever they change
+  // Auto-save Cykris Statement and DR list to localStorage whenever they change
   useEffect(() => {
-    if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
+    if (billingStatement.length > 0) {
       const saveData = {
         billingStatement,
         drList,
         timestamp: new Date().toISOString(),
         version: '1.0'
       };
-      
-      // Update the saved statements with current data using functional update
-      setSavedStatements(prevSavedStatements => {
-        const updatedSavedStatements = {
-          ...prevSavedStatements,
-          [currentStatementName]: saveData
-        };
-        
-        localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
-        // console.log(`Billing statement "${currentStatementName}" auto-saved:`, billingStatement.length, 'items');
-        
-        return updatedSavedStatements;
-      });
+      localStorage.setItem("cykrisStatement", JSON.stringify(saveData));
+      console.log('Cykris Statement auto-saved:', billingStatement.length, 'items');
     }
-  }, [billingStatement, drList, currentStatementName]);
+  }, [billingStatement, drList]);
 
   // Create periodic backup every 5 minutes
   useEffect(() => {
     const backupInterval = setInterval(() => {
-      if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
+      if (billingStatement.length > 0) {
         const backupData = {
           billingStatement,
           drList,
           timestamp: new Date().toISOString(),
           version: '1.0',
-          isBackup: true,
-          statementName: currentStatementName
+          isBackup: true
         };
-        localStorage.setItem("billingStatement_backup", JSON.stringify(backupData));
-        console.log(`Backup created for "${currentStatementName}" at:`, new Date().toLocaleTimeString());
+        localStorage.setItem("cykrisStatement_backup", JSON.stringify(backupData));
+        console.log('Backup created at:', new Date().toLocaleTimeString());
       }
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(backupInterval);
-  }, [billingStatement, drList, currentStatementName]);
+  }, [billingStatement, drList]);
 
-  // Auto-load billing statement from localStorage on component mount
+  // Auto-load Cykris Statement from localStorage on component mount
   useEffect(() => {
     const loadSavedData = (data, source) => {
       if (data.billingStatement && Array.isArray(data.billingStatement)) {
         setBillingStatement(data.billingStatement);
-        console.log(`Billing statement auto-loaded from ${source}:`, data.billingStatement.length, 'items');
+        console.log(`Cykris Statement auto-loaded from ${source}:`, data.billingStatement.length, 'items');
         
         // Restore DR list if available
         if (data.drList && Array.isArray(data.drList)) {
@@ -158,37 +128,8 @@ export default function Billing() {
       return false;
     };
 
-    // First, try to load from the new save/load system
-    const currentStatementName = localStorage.getItem("currentStatementName");
-    const savedStatements = localStorage.getItem("savedBillingStatements");
-    
-    if (currentStatementName && savedStatements) {
-      try {
-        const parsedStatements = JSON.parse(savedStatements);
-        const currentStatement = parsedStatements[currentStatementName];
-        
-        if (currentStatement && currentStatement.billingStatement) {
-          setBillingStatement(currentStatement.billingStatement);
-          if (currentStatement.drList) {
-            setDrList(currentStatement.drList);
-          }
-          setCurrentStatementName(currentStatementName);
-          setSavedStatements(parsedStatements);
-          console.log(`Restored current billing statement "${currentStatementName}" with ${currentStatement.billingStatement.length} items`);
-          return; // Exit early if we successfully loaded from new system
-        } else {
-          console.warn(`Current statement "${currentStatementName}" not found in saved statements`);
-        }
-      } catch (error) {
-        console.error('Error loading from save/load system:', error);
-        // Clear corrupted data
-        localStorage.removeItem("currentStatementName");
-        localStorage.removeItem("savedBillingStatements");
-      }
-    }
-
-    // Fallback to old system if new system doesn't have data
-    const saved = localStorage.getItem("billingStatement");
+    // Try to load main data first
+    const saved = localStorage.getItem("cykrisStatement");
     if (saved) {
       try {
         const parsedData = JSON.parse(saved);
@@ -196,9 +137,9 @@ export default function Billing() {
           throw new Error('Invalid data structure');
         }
       } catch (error) {
-        console.error('Error loading saved billing statement:', error);
+        console.error('Error loading saved Cykris Statement:', error);
         // Try backup if main data is corrupted
-        const backup = localStorage.getItem("billingStatement_backup");
+        const backup = localStorage.getItem("cykrisStatement_backup");
         if (backup) {
           try {
             const backupData = JSON.parse(backup);
@@ -208,32 +149,16 @@ export default function Billing() {
           } catch (backupError) {
             console.error('Backup data also corrupted:', backupError);
             // Clear all corrupted data
-            localStorage.removeItem("billingStatement");
-            localStorage.removeItem("billingStatement_backup");
+            localStorage.removeItem("cykrisStatement");
+            localStorage.removeItem("cykrisStatement_backup");
           }
         } else {
           // Clear corrupted main data
-          localStorage.removeItem("billingStatement");
+          localStorage.removeItem("cykrisStatement");
         }
       }
     }
   }, []); // Only run once on mount
-
-  // Load saved statements on component mount (handled in main auto-load effect above)
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      // Ctrl/Cmd + B to toggle billing records
-      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
-        event.preventDefault();
-        setShowBillingRecords(prev => !prev);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Modify filtered to use drList instead of allDr
   const filtered = useMemo(() => {
@@ -252,7 +177,7 @@ export default function Billing() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page]);
 
-  // Check if DR is already in billing statement
+  // Check if DR is already in Cykris Statement
   const isDRAdded = (drId) => {
     return billingStatement.some(item => item.drId === drId);
   };
@@ -272,7 +197,7 @@ export default function Billing() {
     return [0, ''];
   };
 
-  // Add DR to billing statement
+  // Add DR to Cykris Statement
   const addToBillingStatement = (dr) => {
     if (isDRAdded(dr._id)) return;
 
@@ -295,7 +220,7 @@ export default function Billing() {
     // No need to modify drList order - removed to prevent lag
   };
 
-  // Update date fields in billing statement
+  // Update date fields in Cykris Statement
   const updateBillingItem = (drId, field, value) => {
     setBillingStatement(prev =>
       prev.map(item =>
@@ -306,117 +231,31 @@ export default function Billing() {
     );
   };
 
-  // Remove item from billing statement
+  // Remove item from Cykris Statement
   const removeFromBillingStatement = (drId) => {
     setBillingStatement(prev => {
       const newStatement = prev.filter(item => item.drId !== drId);
-      // Clear localStorage if billing statement becomes empty
+      // Clear localStorage if Cykris Statement becomes empty
       if (newStatement.length === 0) {
-        localStorage.removeItem("billingStatement");
-        localStorage.removeItem("billingStatement_backup");
-        console.log('Billing statement cleared, localStorage cleaned');
+        localStorage.removeItem("cykrisStatement");
+        localStorage.removeItem("cykrisStatement_backup");
+        console.log('Cykris Statement cleared, localStorage cleaned');
       }
       return newStatement;
     });
   };
 
-  // Clear all items from billing statement
+  // Clear all items from Cykris Statement
   const clearAllBillingStatement = () => {
-    if (window.confirm('Are you sure you want to clear all items from the billing statement? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to clear all items from the Cykris Statement? This action cannot be undone.')) {
       setBillingStatement([]);
-      localStorage.removeItem("billingStatement");
-      localStorage.removeItem("billingStatement_backup");
-      console.log('All billing statement items cleared');
+      localStorage.removeItem("cykrisStatement");
+      localStorage.removeItem("cykrisStatement_backup");
+      console.log('All Cykris Statement items cleared');
     }
   };
 
-  // Save/Load functionality
-  const loadSavedStatements = () => {
-    try {
-      const saved = localStorage.getItem("savedBillingStatements");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setSavedStatements(parsed);
-      }
-    } catch (error) {
-      console.error('Error loading saved statements:', error);
-    }
-  };
-
-  const saveCurrentStatement = (statementName) => {
-    if (!statementName.trim()) {
-      alert('Please enter a name for the billing statement');
-      return;
-    }
-
-    const statementData = {
-      billingStatement,
-      drList,
-      timestamp: new Date().toISOString(),
-      version: '1.0'
-    };
-
-    const updatedSavedStatements = {
-      ...savedStatements,
-      [statementName]: statementData
-    };
-
-    setSavedStatements(updatedSavedStatements);
-    setCurrentStatementName(statementName);
-    
-    // Save to localStorage
-    localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
-    localStorage.setItem("currentStatementName", statementName);
-    
-    console.log(`Billing statement "${statementName}" saved with ${billingStatement.length} items`);
-  };
-
-  const loadStatement = (statementName) => {
-    const statementData = savedStatements[statementName];
-    if (statementData) {
-      setBillingStatement(statementData.billingStatement || []);
-      if (statementData.drList) {
-        setDrList(statementData.drList);
-      }
-      setCurrentStatementName(statementName);
-      localStorage.setItem("currentStatementName", statementName);
-      console.log(`Loaded billing statement "${statementName}" with ${statementData.billingStatement?.length || 0} items`);
-    }
-  };
-
-  const deleteStatement = (statementName) => {
-    if (window.confirm(`Are you sure you want to delete "${statementName}"? This action cannot be undone.`)) {
-      const updatedSavedStatements = { ...savedStatements };
-      delete updatedSavedStatements[statementName];
-      
-      setSavedStatements(updatedSavedStatements);
-      localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
-      
-      // If we're deleting the current statement, clear it
-      if (currentStatementName === statementName) {
-        setBillingStatement([]);
-        setCurrentStatementName('Untitled');
-        localStorage.removeItem("currentStatementName");
-      }
-      
-      console.log(`Deleted billing statement "${statementName}"`);
-    }
-  };
-
-  const startNewStatement = () => {
-    if (billingStatement.length > 0) {
-      if (!window.confirm('Starting a new billing statement will clear the current one. Do you want to continue?')) {
-        return;
-      }
-    }
-    
-    setBillingStatement([]);
-    setCurrentStatementName('Untitled');
-    localStorage.removeItem("currentStatementName");
-    console.log('Started new billing statement');
-  };
-
-  // Filter billing statement based on search
+  // Filter Cykris Statement based on search
   const filteredBillingStatement = useMemo(() => {
     if (!billingSearch.trim()) return billingStatement;
     const s = billingSearch.toLowerCase();
@@ -429,7 +268,7 @@ export default function Billing() {
     );
   }, [billingStatement, billingSearch]);
 
-  // Get unique destinations in current billing statement (in order of appearance)
+  // Get unique destinations in current Cykris Statement (in order of appearance)
   const uniqueDestinations = useMemo(() => {
     const seen = new Set();
     const result = [];
@@ -459,7 +298,7 @@ export default function Billing() {
     });
   };
 
-  // Save new order and reorder billing statement
+  // Save new order and reorder Cykris Statement
   const saveDestinationOrder = () => {
     // Reorder billingStatement by new destination order, sorting by waybillNo within each group
     setBillingStatement(prev => {
@@ -501,61 +340,16 @@ export default function Billing() {
   const totalDV = filteredBillingStatement.reduce((sum, item) => sum + item.dv, 0);
   const totalCharges = filteredBillingStatement.reduce((sum, item) => sum + item.charges, 0);
 
-  // Helper function to send billing email notification
-  const notifyBillingPrint = async (printType) => {
-    // Calculate billing summary
-    const totalSales = totalDV;
-    const totalDue = totalCharges;
-    const itemCount = filteredBillingStatement.length;
-    
-    setEmailSending(true);
-    
-    try {
-      // Send email notification
-      await sendBillingEmail({
-        printType,
-        totalSales,
-        totalDue,
-        itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
-      });
-      
-      // Log to database
-      await recordBillingPrint({
-        printType,
-        totalSales,
-        totalDue,
-        itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
-      });
-      
-      console.log("✅ Billing notification sent successfully");
-      setEmailSending(false);
-      return { success: true };
-    } catch (error) {
-      console.error("❌ Failed to send billing notification:", error);
-      setEmailSending(false);
-      return { success: false, error };
-    }
-  };
 
   const printRef = useRef();
   const newPrintRef = useRef();
-  
-  // Open print options modal
   const handlePrint = () => {
-    setPrintOptionsModalOpen(true);
-  };
-
-  // Print without labels (current behavior)
-  const printWithoutLabels = () => {
-    setPrintOptionsModalOpen(false);
     const printContent = newPrintRef.current.innerHTML;
     const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
       <html>
         <head>
-          <title>Billing Statement</title>
+          <title>Cykris Statement</title>
           <style>
             table { border-collapse: collapse; width: 100%; font-family: Arial; font-size: 12px; }
             th, td { border: 1px solid #000; padding: 4px; text-align: left; }
@@ -598,81 +392,6 @@ export default function Billing() {
             <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
           </div>
           ${printContent}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    // printWindow.print();
-    // printWindow.close();
-  };
-
-  // Print with labels
-  const printWithLabels = () => {
-    setPrintOptionsModalOpen(false);
-    const printContent = newPrintRef.current.innerHTML;
-    const printWindow = window.open("", "", "width=920,height=650");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Billing Statement (With Labels)</title>
-          <style>
-            table { border-collapse: collapse; width: 100%; font-family: Arial; font-size: 12px; }
-            th, td { border: 1px solid #000; padding: 4px; text-align: left; }
-            thead { background: #eee; }
-          </style>
-        </head>
-        <body style="margin: 0; padding: 0;">
-          <div style="visibility: hidden">
-            <div style="position: absolute;top: 165px;left: 705px;background-color: green;width: 150px;height: 1px;"></div>
-            <div style="position: absolute; top: 240px; left: 210px; background-color: green; width: 120px; height: 2px;"></div>
-            <div style="position: absolute;top: 322px;left: 210px;background-color: green;width: 120px;height: 2px;"></div>
-            <div style="position: absolute;top: 400px;left: 0px;background-color: green;width: 900px;height: 1px;"></div>
-            <div style="position: absolute; top: 950px; left: 0; background-color: green; width: 900px; height: 1px;"></div>
-          </div>
-          <div style="visibility: hidden">
-            <div style="position: absolute; top: 0; left: 0px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 100px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 200px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 300px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 400px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 500px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 600px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 700px; background-color: red; width: 1px; height: 1200px;"></div>
-            <div style="position: absolute; top: 0; left: 800px; background-color: red; width: 1px; height: 1200px;"></div>
-            
-            <div style="position: absolute; top: 0px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 400px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 500px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 600px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 700px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 800px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 900px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 1000px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 1100px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 1200px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 1250px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-            <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
-          </div>
-          ${printContent}
-          
-          <!-- Labels for header section -->
-          <div style="position: absolute; top: 145px; left: 550px; fontSize: 14px; fontWeight: bold;">Date:</div>
-          <div style="position: absolute; top: 221px; left: 50px; fontSize: 14px; fontWeight: bold;">Registered Name:</div>
-          <div style="position: absolute; top: 297px; left: 50px; fontSize: 14px; fontWeight: bold;">Business Address:</div>
-          
-          <!-- Labels for financial calculations -->
-          <div style="position: absolute; top: 970px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Sales:</div>
-          <div style="position: absolute; top: 975px; left: 50px; fontSize: 14px; fontWeight: bold;">VATable Sales:</div>
-          <div style="position: absolute; top: 1010px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: VAT:</div>
-          <div style="position: absolute; top: 1015px; left: 50px; fontSize: 14px; fontWeight: bold;">VAT:</div>
-          <div style="position: absolute; top: 1040px; left: 550px; fontSize: 14px; fontWeight: bold;">Amount: Net of VAT:</div>
-          <div style="position: absolute; top: 1115px; left: 550px; fontSize: 14px; fontWeight: bold;">Add: VAT:</div>
-          <div style="position: absolute; top: 1155px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: Withholding Tax:</div>
-          <div style="position: absolute; top: 1200px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Amount Due:</div>
         </body>
       </html>
     `);
@@ -705,23 +424,6 @@ export default function Billing() {
     const month = date.toLocaleString('en-US', { month: 'short' });
     const year = date.getFullYear().toString().slice(-2);
     return `${day}-${month}-${year}`;
-  }
-
-  function formatDateForInput(dateStr) {
-    if (!dateStr) return "";
-    // If it's already in yyyy-MM-dd format, return as is
-    if (dateStr.includes('-') && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      return dateStr;
-    }
-    // Otherwise, try to convert to yyyy-MM-dd format
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date)) return "";
-      return date.toISOString().split('T')[0];
-    } catch (error) {
-      console.warn('Error formatting date for input:', dateStr, error);
-      return "";
-    }
   }
 
   const [editDestinationPopup, setEditDestinationPopup] = useState({ open: false, drId: null, value: "" });
@@ -849,7 +551,7 @@ export default function Billing() {
   // Excel export function
   const exportToExcel = async () => {
     if (billingStatement.length === 0) {
-      alert('No billing statement data to export');
+      alert('No Cykris Statement data to export');
       return;
     }
 
@@ -861,122 +563,74 @@ export default function Billing() {
   // Actual export function with filename
   const performExport = async (userFilename) => {
     try {
-      // Create a new workbook
+      // Create a new workbook and worksheet
       const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Cykris Statement');
+
+      // Add company header information
+      worksheet.getCell('A1').value = 'TRIMOTORS TECHNOLOGY CORP.';
+      worksheet.getCell('A1').font = { bold: true, size: 12 };
+
+      worksheet.getCell('A2').value = 'KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG MUNTINLUPA MANILA';
+      worksheet.getCell('A2').alignment = { wrapText: true };
       
-      // Split billing statement into chunks of 22 items (like print functionality)
-      const itemsPerPage = 22;
-      const totalPages = Math.ceil(billingStatement.length / itemsPerPage);
+      // Merge columns 1, 2, 3 in row 2
+      worksheet.mergeCells('A2:C2');
       
-      // Create worksheets for each page
-      for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
-        const startIndex = pageIndex * itemsPerPage;
-        const endIndex = Math.min(startIndex + itemsPerPage, billingStatement.length);
-        const pageItems = billingStatement.slice(startIndex, endIndex);
+      // Set font properties after merging
+      worksheet.getCell('A2').font = { bold: true, size: 6, name: 'Arial' };
+
+      worksheet.getCell('A3').value = '';
+
+      // Set column widths manually
+      worksheet.getColumn(1).width = 10; // Waybill No
+      worksheet.getColumn(2).width = 10; // WB Date
+      worksheet.getColumn(3).width = 12; // Destination
+      worksheet.getColumn(4).width = 12; // DR No
+      worksheet.getColumn(5).width = 10; // DR Date
+      worksheet.getColumn(6).width = 14; // DV
+      worksheet.getColumn(7).width = 10; // Percent
+      worksheet.getColumn(8).width = 12; // Charges
+
+      // Manually add table headers at row 9
+      const headers = ['Waybill No', 'WB Date', 'Destination', 'DR No', 'DR Date', 'DV', 'Percent', 'Charges'];
+      const headerRow = worksheet.getRow(9);
+      
+      headers.forEach((header, colIndex) => {
+        const cell = headerRow.getCell(colIndex + 1);
+        cell.value = header;
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' } // Light gray
+        };
+      });
+
+      // Add data rows starting from row 10
+      billingStatement.forEach((item, index) => {
+        const rowNumber = 10 + index; // Start from row 10
+        const row = worksheet.getRow(rowNumber);
         
-        // Calculate page totals
-        const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
-        const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
-        
-        // Create worksheet for this page
-        const worksheet = workbook.addWorksheet(`Page ${pageIndex + 1}`);
+        // Set cell values
+        row.getCell(1).value = item.waybillNo || '';
+        row.getCell(2).value = item.wbDate ? formatDateShort(item.wbDate) : '';
+        row.getCell(3).value = item.destination || '';
+        row.getCell(4).value = item.drNo || '';
+        row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
+        row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
+        row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+        row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        // Add company header information
-        worksheet.getCell('A1').value = 'TRIMOTORS TECHNOLOGY CORP.';
-        worksheet.getCell('A1').font = { bold: true, size: 12 };
-
-        worksheet.getCell('A2').value = 'KM 23 EAST SERVICE ROAD BO,CUPANG,ALABANG MUNTINLUPA MANILA';
-        worksheet.getCell('A2').alignment = { wrapText: true };
-        
-        // Merge columns 1, 2, 3 in row 2
-        worksheet.mergeCells('A2:C2');
-        
-        // Set font properties after merging
-        worksheet.getCell('A2').font = { bold: true, size: 6, name: 'Arial' };
-
-        worksheet.getCell('A3').value = '';
-
-        // Set column widths manually
-        worksheet.getColumn(1).width = 10; // Waybill No
-        worksheet.getColumn(2).width = 10; // WB Date
-        worksheet.getColumn(3).width = 12; // Destination
-        worksheet.getColumn(4).width = 12; // DR No
-        worksheet.getColumn(5).width = 10; // DR Date
-        worksheet.getColumn(6).width = 14; // DV
-        worksheet.getColumn(7).width = 10; // Percent
-        worksheet.getColumn(8).width = 12; // Charges
-
-        // Manually add table headers at row 9
-        const headers = ['Waybill No', 'WB Date', 'Destination', 'DR No', 'DR Date', 'DV', 'Percent', 'Charges'];
-        const headerRow = worksheet.getRow(9);
-        
-        headers.forEach((header, colIndex) => {
-          const cell = headerRow.getCell(colIndex + 1);
-          cell.value = header;
-          cell.font = { bold: true };
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' } // Light gray
-          };
-        });
-
-        // Add data rows starting from row 10
-        pageItems.forEach((item, index) => {
-          const rowNumber = 10 + index; // Start from row 10
-          const row = worksheet.getRow(rowNumber);
-          
-          // Set cell values
-          row.getCell(1).value = item.waybillNo || '';
-          row.getCell(2).value = item.wbDate ? formatDateShort(item.wbDate) : '';
-          row.getCell(3).value = item.destination || '';
-          row.getCell(4).value = item.drNo || '';
-          row.getCell(5).value = item.drDate ? formatDateShort(item.drDate) : '';
-          row.getCell(6).value = item.dv.toLocaleString(undefined, { minimumFractionDigits: 2 });
-          row.getCell(7).value = item.percent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-          row.getCell(8).value = item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-          // Add borders and alignment to data cells
-          row.eachCell((cell, colNumber) => {
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
-            };
-            
-            // Set alignment based on column
-            if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
-              cell.alignment = { horizontal: 'right', vertical: 'middle' };
-            } else { // All other columns (centered)
-              cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            }
-          });
-        });
-
-        // Add total row for this page
-        const totalRowNumber = 10 + pageItems.length; // After all data rows for this page
-        const totalRow = worksheet.getRow(totalRowNumber);
-        
-        // Set total row values
-        totalRow.getCell(1).value = '';
-        totalRow.getCell(2).value = '';
-        totalRow.getCell(3).value = '';
-        totalRow.getCell(4).value = '';
-        totalRow.getCell(5).value = 'TOTAL:';
-        totalRow.getCell(6).value = pageTotalDV.toLocaleString(undefined, { minimumFractionDigits: 2 });
-        totalRow.getCell(7).value = '';
-        totalRow.getCell(8).value = pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        // Style the total row
-        totalRow.eachCell((cell, colNumber) => {
+        // Add borders and alignment to data cells
+        row.eachCell((cell, colNumber) => {
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
@@ -990,68 +644,99 @@ export default function Billing() {
           } else { // All other columns (centered)
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
           }
-          
-          // Bold the total values
-          if (colNumber === 5 || colNumber === 6 || colNumber === 8) { // TOTAL:, DV total, Charges total
-            cell.font = { bold: true };
-          }
         });
+      });
 
-        // Add signature section after 3 empty rows
-        const signatureRowNumber = totalRowNumber + 4; // 3 empty rows after total
-        const signatureRow = worksheet.getRow(signatureRowNumber);
-        
-        // Add signature labels
-        signatureRow.getCell(1).value = 'PREPARED BY:';
-        signatureRow.getCell(3).value = '             CHECKED BY:';
-        signatureRow.getCell(7).value = 'RECEIVED BY:';
-        
-        // Style signature labels
-        signatureRow.getCell(1).font = { bold: true };
-        signatureRow.getCell(3).font = { bold: true };
-        signatureRow.getCell(7).font = { bold: true };
+      // Add total row
+      const totalRowNumber = 10 + billingStatement.length; // After all data rows
+      const totalRow = worksheet.getRow(totalRowNumber);
+      
+      // Set total row values
+      totalRow.getCell(1).value = '';
+      totalRow.getCell(2).value = '';
+      totalRow.getCell(3).value = '';
+      totalRow.getCell(4).value = '';
+      totalRow.getCell(5).value = 'TOTAL:';
+      totalRow.getCell(6).value = totalDV.toLocaleString(undefined, { minimumFractionDigits: 2 });
+      totalRow.getCell(7).value = '';
+      totalRow.getCell(8).value = totalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        // Add signature lines row (next row)
-        const signatureLineRow = worksheet.getRow(signatureRowNumber + 1);
-        
-        // Add bottom border to columns 7 and 8 for signature lines
-        signatureLineRow.getCell(7).border = {
-          bottom: { style: 'thin' }
+      // Style the total row
+      totalRow.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
         };
-        signatureLineRow.getCell(8).border = {
-          bottom: { style: 'thin' }
-        };
+        
+        // Set alignment based on column
+        if (colNumber === 6 || colNumber === 8) { // DV and Charges columns
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        } else { // All other columns (centered)
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+        
+        // Bold the total values
+        if (colNumber === 5 || colNumber === 6 || colNumber === 8) { // TOTAL:, DV total, Charges total
+          cell.font = { bold: true };
+        }
+      });
 
-        // Add signature names row
-        const signatureNamesRow = worksheet.getRow(signatureRowNumber + 2);
-        
-        // AILEEN MATUB (columns 1,2)
-        signatureNamesRow.getCell(1).value = 'AILEEN MATUB';
-        signatureNamesRow.getCell(1).font = { bold: true, size: 10 };
-        signatureNamesRow.getCell(1).alignment = { horizontal: 'center' };
-        worksheet.mergeCells(`A${signatureRowNumber + 2}:B${signatureRowNumber + 2}`);
-        
-        // ERVY YPARRAGUIRRE (columns 3,4)
-        signatureNamesRow.getCell(3).value = 'ERVY YPARRAGUIRRE';
-        signatureNamesRow.getCell(3).font = { bold: true, size: 10 };
-        signatureNamesRow.getCell(3).alignment = { horizontal: 'center' };
-        worksheet.mergeCells(`C${signatureRowNumber + 2}:D${signatureRowNumber + 2}`);
+      // Add signature section after 3 empty rows
+      const signatureRowNumber = totalRowNumber + 4; // 3 empty rows after total
+      const signatureRow = worksheet.getRow(signatureRowNumber);
+      
+      // Add signature labels
+      signatureRow.getCell(1).value = 'PREPARED BY:';
+      signatureRow.getCell(3).value = '             CHECKED BY:';
+      signatureRow.getCell(7).value = 'RECEIVED BY:';
+      
+      // Style signature labels
+      signatureRow.getCell(1).font = { bold: true };
+      signatureRow.getCell(3).font = { bold: true };
+      signatureRow.getCell(7).font = { bold: true };
 
-        // Add titles row
-        const titlesRow = worksheet.getRow(signatureRowNumber + 3);
-        
-        // BRANCH MANAGER (columns 1,2)
-        titlesRow.getCell(1).value = 'BRANCH MANAGER';
-        titlesRow.getCell(1).font = { bold: true, italic: true, size: 8 };
-        titlesRow.getCell(1).alignment = { horizontal: 'center' };
-        worksheet.mergeCells(`A${signatureRowNumber + 3}:B${signatureRowNumber + 3}`);
-        
-        // COMPANY OWNER (columns 3,4)
-        titlesRow.getCell(3).value = 'COMPANY OWNER';
-        titlesRow.getCell(3).font = { bold: true, italic: true, size: 8 };
-        titlesRow.getCell(3).alignment = { horizontal: 'center' };
-        worksheet.mergeCells(`C${signatureRowNumber + 3}:D${signatureRowNumber + 3}`);
-      }
+      // Add signature lines row (next row)
+      const signatureLineRow = worksheet.getRow(signatureRowNumber + 1);
+      
+      // Add bottom border to columns 7 and 8 for signature lines
+      signatureLineRow.getCell(7).border = {
+        bottom: { style: 'thin' }
+      };
+      signatureLineRow.getCell(8).border = {
+        bottom: { style: 'thin' }
+      };
+
+      // Add signature names row
+      const signatureNamesRow = worksheet.getRow(signatureRowNumber + 2);
+      
+      // AILEEN MATUB (columns 1,2)
+      signatureNamesRow.getCell(1).value = 'AILEEN MATUB';
+      signatureNamesRow.getCell(1).font = { bold: true, size: 10 };
+      signatureNamesRow.getCell(1).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`A${signatureRowNumber + 2}:B${signatureRowNumber + 2}`);
+      
+      // ERVY YPARRAGUIRRE (columns 3,4)
+      signatureNamesRow.getCell(3).value = 'ERVY YPARRAGUIRRE';
+      signatureNamesRow.getCell(3).font = { bold: true, size: 10 };
+      signatureNamesRow.getCell(3).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`C${signatureRowNumber + 2}:D${signatureRowNumber + 2}`);
+
+      // Add titles row
+      const titlesRow = worksheet.getRow(signatureRowNumber + 3);
+      
+      // BRANCH MANAGER (columns 1,2)
+      titlesRow.getCell(1).value = 'BRANCH MANAGER';
+      titlesRow.getCell(1).font = { bold: true, italic: true, size: 8 };
+      titlesRow.getCell(1).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`A${signatureRowNumber + 3}:B${signatureRowNumber + 3}`);
+      
+      // COMPANY OWNER (columns 3,4)
+      titlesRow.getCell(3).value = 'COMPANY OWNER';
+      titlesRow.getCell(3).font = { bold: true, italic: true, size: 8 };
+      titlesRow.getCell(3).alignment = { horizontal: 'center' };
+      worksheet.mergeCells(`C${signatureRowNumber + 3}:D${signatureRowNumber + 3}`);
 
       // Generate filename using user input
       const currentDate = new Date().toISOString().split('T')[0];
@@ -1094,9 +779,9 @@ export default function Billing() {
       const buffer = await file.arrayBuffer();
       await workbook.xlsx.load(buffer);
 
-      const worksheet = workbook.getWorksheet('Billing Statement');
+      const worksheet = workbook.getWorksheet('Cykris Statement');
       if (!worksheet) {
-        alert('Could not find "Billing Statement" worksheet in the Excel file');
+        alert('Could not find "Cykris Statement" worksheet in the Excel file');
         return;
       }
 
@@ -1164,7 +849,7 @@ export default function Billing() {
         return;
       }
 
-      // Update billing statement with imported data
+      // Update Cykris Statement with imported data
       setBillingStatement(importedData);
       
       alert(`Successfully imported ${importedData.length} items from Excel file`);
@@ -1189,47 +874,12 @@ export default function Billing() {
     setFilenameModalOpen(false);
   };
 
-  const getNetOfVAT = (totalSales) => {
-    const numAmount = typeof totalSales === 'string' ? parseFloat(totalSales.replace(/,/g, '')) : parseFloat(totalSales);
-    return (numAmount / 1.12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const getVAT = (totalSales) => {
-    const numAmount = typeof totalSales === 'string' ? parseFloat(totalSales.replace(/,/g, '')) : parseFloat(totalSales);
-    const netOfVAT = numAmount / 1.12;
-    return (netOfVAT * 0.12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const getWithholdingTax = (netOfVAT) => {
-    const numNetOfVAT = typeof netOfVAT === 'string' ? parseFloat(netOfVAT.replace(/,/g, '')) : parseFloat(netOfVAT);
-    return (numNetOfVAT * 0.02).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const getTotalAmountDue = (totalSales, withholdingTax) => {
-    const numTotalSales = typeof totalSales === 'string' ? parseFloat(totalSales.replace(/,/g, '')) : parseFloat(totalSales);
-    const numWithholdingTax = typeof withholdingTax === 'string' ? parseFloat(withholdingTax.replace(/,/g, '')) : parseFloat(withholdingTax);
-    return (numTotalSales - numWithholdingTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 py-5 flex gap-6 px-6">
-      {/* Billing Records Panel */}
-      {showBillingRecords && (
-        <div className="w-[50%] py-8 billing-records">
+    <div className="min-h-screen bg-gray-50 py-10 flex gap-6 px-6">
+      {/* Cykris Records Panel */}
+      <div className="w-[50%] py-8 billing-records">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">Billing Records</h1>
-            {/* <button
-              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 border border-gray-200"
-              onClick={() => setShowBillingRecords(false)}
-              title="Hide Billing Records (Ctrl+B)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-              Hide
-            </button> */}
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Cykris Records</h1>
           <button
             onClick={openManualAddModal}
             disabled={isSavingDr}
@@ -1289,7 +939,7 @@ export default function Billing() {
                       <td className="px-4 py-3 text-sm">{dr.waybill_no}</td>
                       <td className="px-4 py-3 text-sm">{dr.name_of_dealer}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{getDRNumber(dr.ref_no)}</td>
-                      {/* <td className="px-4 py-3 text-sm">₱{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td> */}
+                      {/* <td className="px-4 py-3 text-sm">â‚±{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td> */}
                       <td className="px-4 py-3">
                         <button
                           onClick={() => addToBillingStatement(dr)}
@@ -1339,103 +989,30 @@ export default function Billing() {
             Next
           </button>
         </div>
-        </div>
-      )}
+      </div>
 
-      {/* Billing Statement Panel */}
-      <div className={`${showBillingRecords ? 'w-full' : 'w-full'} bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col`}>
+      {/* Cykris Statement Panel */}
+      <div className="w-full bg-white rounded-2xl shadow-lg p-8 billing-statement flex flex-col">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={`px-4 py-2 rounded border ${
-                  showBillingRecords 
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200' 
-                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200'
-                }`}
-                onClick={() => setShowBillingRecords(!showBillingRecords)}
-                title={showBillingRecords ? "Hide Billing Records (Ctrl+B)" : "Show Billing Records (Ctrl+B)"}
-              >
-                {showBillingRecords ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </>
-                )}
-              </button>
-              <button
-                className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
-                onClick={() => setSaveModalOpen(true)}
-                title="Save Current Billing Statement"
-              >
-                Save
-              </button>
-              <button
-                className="px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
-                onClick={() => setLoadModalOpen(true)}
-                title="Load Saved Billing Statement"
-              >
-                Load
-              </button>
-              <button
-                className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"
-                onClick={startNewStatement}
-                title="Start New Billing Statement"
-              >
-                New
-              </button>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              <span>
-                Billing Statement
-                <span className="ml-3 text-sm text-gray-500">
-                  ({incompleteItems} items left)
-                </span>
+          <h1 className="text-2xl font-bold text-gray-900">
+            <span>
+              Cykris Statement
+              <span className="ml-3 text-sm text-gray-500">
+                ({incompleteItems} items left)
               </span>
-            </h1>
-            <div className="text-sm text-gray-600 mt-1">
-              Current: <span className="font-medium text-blue-600">{currentStatementName}</span>
-            </div>
-          </div>
+            </span>
+          </h1>
           <div className="flex flex-col gap-2">
             {/* First row - Main action buttons */}
             <div className="flex flex-wrap gap-2">
-              {/* <button
-                className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-200"
-                onClick={() => setSaveModalOpen(true)}
-                title="Save Current Billing Statement"
-              >
-                Save
-              </button>
               <button
-                className="px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
-                onClick={() => setLoadModalOpen(true)}
-                title="Load Saved Billing Statement"
-              >
-                Load
-              </button>
-              <button
-                className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"
-                onClick={startNewStatement}
-                title="Start New Billing Statement"
-              >
-                New
-              </button> */}
-              {/* <button
                 className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200"
                 onClick={clearAllBillingStatement}
                 title="Clear All Items"
                 disabled={billingStatement.length === 0}
               >
                 Clear All
-              </button> */}
+              </button>
               <button
                 className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
                 onClick={openSortModal}
@@ -1494,7 +1071,7 @@ export default function Billing() {
 
         </div>
 
-        {/* Billing Statement Search */}
+        {/* Cykris Statement Search */}
         <div className="flex items-center mb-4 relative">
           <input
             placeholder="Search billing items by waybill, destination, DR number, or date..."
@@ -1507,7 +1084,7 @@ export default function Billing() {
             className="absolute right-[0.1rem] px-3 py-2 text-gray-400 hover:text-gray-700"
             title="Clear search"
           >
-            ×
+            Ã—
           </button>
         </div>
 
@@ -1533,7 +1110,7 @@ export default function Billing() {
               {filteredBillingStatement.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center text-gray-400 py-8">
-                    {billingSearch ? 'No items match your search.' : 'No items in billing statement.'}
+                    {billingSearch ? 'No items match your search.' : 'No items in Cykris Statement.'}
                   </td>
                 </tr>
               ) : (
@@ -1567,7 +1144,7 @@ export default function Billing() {
                     <td className="px-3 py-3 relative">
                       <input
                         type="date"
-                        value={formatDateForInput(item.wbDate)}
+                        value={item.wbDate}
                         onChange={e => updateBillingItem(item.drId, 'wbDate', e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                       />
@@ -1592,7 +1169,7 @@ export default function Billing() {
                     <td className="px-3 py-3 relative">
                       <input
                         type="date"
-                        value={formatDateForInput(item.drDate)}
+                        value={item.drDate}
                         onChange={e => updateBillingItem(item.drId, 'drDate', e.target.value)}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded mb-1 text-transparent"
                       />
@@ -1648,10 +1225,10 @@ export default function Billing() {
               </span>
               <div className="flex gap-6">
                 <span className="font-bold text-lg text-gray-900">
-                  {billingSearch ? 'Filtered DV: ' : 'Total DV: '}₱{totalDV.toLocaleString()}
+                  {billingSearch ? 'Filtered DV: ' : 'Total DV: '}â‚±{totalDV.toLocaleString()}
                 </span>
                 <span className="font-bold text-lg text-gray-900">
-                  {billingSearch ? 'Filtered Charges: ' : 'Total Charges: '}₱{totalCharges.toLocaleString()}
+                  {billingSearch ? 'Filtered Charges: ' : 'Total Charges: '}â‚±{totalCharges.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -1755,7 +1332,7 @@ export default function Billing() {
                   }`}
                 title="Drag to reorder"
               >
-                <span className="cursor-grab select-none">↕</span>
+                <span className="cursor-grab select-none">â†•</span>
                 <span className="flex-1 truncate">{dest}</span>
               </li>
             ))}
@@ -1917,152 +1494,6 @@ export default function Billing() {
             </button>
           </div>
         </Modal>
-
-        {/* Save Billing Statement Modal */}
-        <Modal open={saveModalOpen} onClose={() => setSaveModalOpen(false)}>
-          <h2 className="text-lg font-bold mb-4">Save Billing Statement</h2>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Statement Name:</label>
-            <input
-              type="text"
-              value={saveStatementName}
-              onChange={(e) => setSaveStatementName(e.target.value)}
-              placeholder="Enter billing statement name"
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  saveCurrentStatement(saveStatementName);
-                  setSaveModalOpen(false);
-                  setSaveStatementName('');
-                }
-              }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              onClick={() => {
-                setSaveModalOpen(false);
-                setSaveStatementName('');
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              onClick={() => {
-                saveCurrentStatement(saveStatementName);
-                setSaveModalOpen(false);
-                setSaveStatementName('');
-              }}
-            >
-              Save
-            </button>
-          </div>
-        </Modal>
-
-        {/* Load Billing Statement Modal */}
-        <Modal open={loadModalOpen} onClose={() => setLoadModalOpen(false)}>
-          <h2 className="text-lg font-bold mb-4">Load Billing Statement</h2>
-          {Object.keys(savedStatements).length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No saved billing statements found.
-            </div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto">
-              <div className="space-y-2">
-                {Object.entries(savedStatements).map(([name, data]) => (
-                  <div
-                    key={name}
-                    className={`flex items-center justify-between p-3 border rounded-lg ${
-                      currentStatementName === name ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{name}</div>
-                      <div className="text-sm text-gray-500">
-                        {data.billingStatement?.length || 0} items • 
-                        Saved {data.timestamp ? new Date(data.timestamp).toLocaleDateString() : 'Unknown'}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                        onClick={() => {
-                          loadStatement(name);
-                          setLoadModalOpen(false);
-                        }}
-                        disabled={currentStatementName === name}
-                      >
-                        {currentStatementName === name ? 'Current' : 'Load'}
-                      </button>
-                      <button
-                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                        onClick={() => deleteStatement(name)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              onClick={() => setLoadModalOpen(false)}
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
-
-        {/* Print Options Modal */}
-        <Modal open={printOptionsModalOpen} onClose={() => setPrintOptionsModalOpen(false)}>
-          <h2 className="text-lg font-bold mb-4">Print Options</h2>
-          <p className="text-gray-600 mb-6">Choose how you would like to print the billing statement:</p>
-          <div className="space-y-3">
-            <button
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
-              onClick={printWithoutLabels}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Print Invoice
-            </button>
-            <button
-              className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
-              onClick={printWithLabels}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              Print Copy
-            </button>
-            <button
-              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => notifyBillingPrint("Email Report")}
-              disabled={emailSending || billingStatement.length === 0}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              {emailSending ? 'Sending...' : 'Send Email Report'}
-            </button>
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              onClick={() => setPrintOptionsModalOpen(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </Modal>
-
         {/* Hidden print version */}
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
@@ -2174,30 +1605,9 @@ export default function Billing() {
                        </div>
                      </div>
                      
-                     {/* Total Sales */}
-                     <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-
-                    {/* LEFT: VAT */}
-                    <div style={{ position: 'absolute', top: '1015px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
-                    {/* Less:VAT */}
-                    <div style={{ position: 'absolute', top: '1010px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
-
-                    {/* LEFT: VATable Sales */}
-                    <div style={{ position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
-                    {/* Amount: Net of VAT */}
-                    <div style={{ position: 'absolute', top: '1040px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                     <div style={{ position: 'absolute', top: '970px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalDV.toLocaleString()}</div>
                      
-                     {/* Less: Discound */}
-                     {/* <div style={{ position: 'absolute', top: '1075px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div> */}
-
-                    {/* Add: VAT */}
-                    <div style={{ position: 'absolute', top: '1115px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
-
-                    {/* Less: Withholding Tax */}
-                    <div style={{ position: 'absolute', top: '1155px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })))}</div>
-
-                    {/* Total Amount Due */}
-                    <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getTotalAmountDue(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), getWithholdingTax(getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))))}</div>
+                     <div style={{ position: 'absolute', top: '1200px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{pageTotalCharges.toLocaleString()}</div>
 
                      {/* Print Secret Footer */}
                      <div className="print-secret-footer" style={{ position: 'absolute', top: '952px', height: '358px', width: '100px', backgroundColor: 'blue', visibility: 'hidden' }}></div>
