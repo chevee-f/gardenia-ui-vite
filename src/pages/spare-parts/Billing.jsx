@@ -671,21 +671,6 @@ export default function Billing() {
             <div style="position: absolute; top: 1300px; left: 0; background-color: blue; width: 900px; height: 1px;"></div>
           </div>
           ${printContent}
-          
-          <!-- Labels for header section -->
-          <div style="position: absolute; top: 145px; left: 550px; fontSize: 14px; fontWeight: bold;">Date:</div>
-          <div style="position: absolute; top: 221px; left: 50px; fontSize: 14px; fontWeight: bold;">Registered Name:</div>
-          <div style="position: absolute; top: 297px; left: 50px; fontSize: 14px; fontWeight: bold;">Business Address:</div>
-          
-          <!-- Labels for financial calculations -->
-          <div style="position: absolute; top: 970px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Sales:</div>
-          <div style="position: absolute; top: 975px; left: 50px; fontSize: 14px; fontWeight: bold;">VATable Sales:</div>
-          <div style="position: absolute; top: 1010px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: VAT:</div>
-          <div style="position: absolute; top: 1015px; left: 50px; fontSize: 14px; fontWeight: bold;">VAT:</div>
-          <div style="position: absolute; top: 1040px; left: 550px; fontSize: 14px; fontWeight: bold;">Amount: Net of VAT:</div>
-          <div style="position: absolute; top: 1115px; left: 550px; fontSize: 14px; fontWeight: bold;">Add: VAT:</div>
-          <div style="position: absolute; top: 1155px; left: 550px; fontSize: 14px; fontWeight: bold;">Less: Withholding Tax:</div>
-          <div style="position: absolute; top: 1200px; left: 550px; fontSize: 14px; fontWeight: bold;">Total Amount Due:</div>
         </body>
       </html>
     `);
@@ -2201,6 +2186,26 @@ export default function Billing() {
                     <div style={{ position: 'absolute', top: '1015px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
                     {/* Less:VAT */}
                     <div style={{ position: 'absolute', top: '1010px', left: '715px', fontSize: '20px', fontWeight: 'bold' }}>{getVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
+                    
+                    {/* Labels - only show when printing with labels (showDivider is true) */}
+                    {showDivider && (
+                      <>
+                        {/* Labels for header section */}
+                        <div style={{ position: 'absolute', top: '145px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Date:</div>
+                        <div style={{ position: 'absolute', top: '221px', left: '50px', fontSize: '14px', fontWeight: 'bold' }}>Registered Name:</div>
+                        <div style={{ position: 'absolute', top: '297px', left: '50px', fontSize: '14px', fontWeight: 'bold' }}>Business Address:</div>
+                        
+                        {/* Labels for financial calculations */}
+                        <div style={{ position: 'absolute', top: '970px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Total Sales:</div>
+                        <div style={{ position: 'absolute', top: '975px', left: '50px', fontSize: '14px', fontWeight: 'bold' }}>VATable Sales:</div>
+                        <div style={{ position: 'absolute', top: '1010px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Less: VAT:</div>
+                        <div style={{ position: 'absolute', top: '1015px', left: '50px', fontSize: '14px', fontWeight: 'bold' }}>VAT:</div>
+                        <div style={{ position: 'absolute', top: '1040px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Amount: Net of VAT:</div>
+                        <div style={{ position: 'absolute', top: '1115px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Add: VAT:</div>
+                        <div style={{ position: 'absolute', top: '1155px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Less: Withholding Tax:</div>
+                        <div style={{ position: 'absolute', top: '1200px', left: '550px', fontSize: '14px', fontWeight: 'bold' }}>Total Amount Due:</div>
+                      </>
+                    )}
 
                     {/* LEFT: VATable Sales */}
                     <div style={{ position: 'absolute', top: '975px', left: '225px', fontSize: '20px', fontWeight: 'bold' }}>{getNetOfVAT(pageTotalCharges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</div>
