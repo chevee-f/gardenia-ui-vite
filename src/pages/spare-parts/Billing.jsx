@@ -2154,20 +2154,23 @@ export default function Billing() {
                        </tbody>
                      </table>
 
+                    <div class="divider" style={{ position: 'absolute', top: '887px', width: '100%', height: '1px', backgroundColor: 'black' }}></div>
                      {/* Print Footer */}
-                     <div className="print-footer" style={{ position: 'absolute', left: '40px', top: '883px', width: '100%' }}>
+                     <div className="print-footer" style={{ position: 'absolute', left: '40px', top: '887px', width: '100%' }}>
                        <div style={{ display: 'flex', width: '100%' }}>
-                         <div style={{ width: '230px' }}>
-                           <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                        <div style={{ width: '230px', position: 'relative' }}>
+                          <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>PREPARED BY:</div>
+                          <img src="/assets/Aileen%20(1).png" alt="Aileen Matub" style={{ width: '120px', height: 'auto', position: 'absolute', top: '-40px', left: '-15px' }} />
                            <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '120px', textAlign: 'center' }}>AILEEN MATUB</div>
                            <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OFFICE STAFF</div>
                          </div>
-                         <div>
+                         <div style={{ position: 'relative' }}>
                            <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px' }}>CHECKED BY:</div>
+                           <img src="/assets/Ervy.png" alt="Ervy Yparraguirre" style={{ width: '210px', height: 'auto', position: 'absolute', top: '-40px', left: '-60px' }} />
                            <div style={{ fontFamily: 'Calibri', fontSize: '14px', fontWeight: 'bold', width: '150px', textAlign: 'left' }}>ERVY YPARRAGUIRRE</div>
                            <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', fontStyle: 'italic', width: '120px', textAlign: 'center' }}>OWNER</div>
                          </div>
-                         <div style={{ position: 'absolute', right: '55px', top: '25px' }}>
+                         <div style={{ display: 'none', position: 'absolute', right: '55px', top: '25px' }}>
                            <div style={{ fontFamily: 'Calibri', fontSize: '12px', fontWeight: 'bold', marginBottom: '10px' }}>RECEIVED BY:</div>
                            <div>_________________________</div>
                          </div>
