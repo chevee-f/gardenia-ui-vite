@@ -52,6 +52,7 @@ export default function Billing() {
   // Print options modal
   const [printOptionsModalOpen, setPrintOptionsModalOpen] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [showDivider, setShowDivider] = useState(false);
 
   // Email notification hooks
   const sendBillingEmail = useAction(api.sendEmail.sendBillingEmail);
@@ -550,8 +551,13 @@ export default function Billing() {
   // Print without labels (current behavior)
   const printWithoutLabels = () => {
     setPrintOptionsModalOpen(false);
-    const printContent = newPrintRef.current.innerHTML;
-    const printWindow = window.open("", "", "width=920,height=650");
+    setShowDivider(false);
+    
+    // Wait for React to re-render without the divider
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const printContent = newPrintRef.current.innerHTML;
+      const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
       <html>
         <head>
@@ -601,16 +607,23 @@ export default function Billing() {
         </body>
       </html>
     `);
-    printWindow.document.close();
-    printWindow.focus();
-    // printWindow.print();
-    // printWindow.close();
+        printWindow.document.close();
+        printWindow.focus();
+        // printWindow.print();
+        // printWindow.close();
+      });
+    });
   };
 
   // Print with labels
   const printWithLabels = () => {
     setPrintOptionsModalOpen(false);
-    const printContent = newPrintRef.current.innerHTML;
+    setShowDivider(true);
+    
+    // Wait for React to re-render with the divider
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const printContent = newPrintRef.current.innerHTML;
     const printWindow = window.open("", "", "width=920,height=650");
     printWindow.document.write(`
       <html>
@@ -676,10 +689,12 @@ export default function Billing() {
         </body>
       </html>
     `);
-    printWindow.document.close();
-    printWindow.focus();
-    // printWindow.print();
-    // printWindow.close();
+        printWindow.document.close();
+        printWindow.focus();
+        // printWindow.print();
+        // printWindow.close();
+      });
+    });
   };
 
   const [editWaybillPopup, setEditWaybillPopup] = useState({ open: false, drId: null, value: "" });
@@ -2154,7 +2169,9 @@ export default function Billing() {
                        </tbody>
                      </table>
 
-                    <div class="divider" style={{ position: 'absolute', top: '887px', width: '100%', height: '1px', backgroundColor: 'black' }}></div>
+                    {showDivider && (
+                      <div className="divider" style={{ position: 'absolute', top: '960px', width: '100%', height: '1px', backgroundColor: 'black' }}></div>
+                    )}
                      {/* Print Footer */}
                      <div className="print-footer" style={{ position: 'absolute', left: '40px', top: '887px', width: '100%' }}>
                        <div style={{ display: 'flex', width: '100%' }}>
