@@ -4,6 +4,10 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import ExcelJS from 'exceljs';
 import rates from './rates.json';
 
+// Feature flag: Enable waybill storage save for Billing
+// Set to true to enable, false to disable (for testing)
+const ENABLE_BILLING_WAYBILL_STORAGE = false;
+
 function Modal({ open, onClose, children }) {
   if (!open) return null;
   return (
@@ -45,6 +49,8 @@ export default function Billing() {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [saveStatementName, setSaveStatementName] = useState('');
+  const [newStatementModalOpen, setNewStatementModalOpen] = useState(false);
+  const [newStatementSaveName, setNewStatementSaveName] = useState('');
   
   // Billing records section toggle
   const [showBillingRecords, setShowBillingRecords] = useState(true);
@@ -77,6 +83,48 @@ export default function Billing() {
     const match = str.match(/DR\s*#\s*(\d+)/i);
     return match ? match[1] : str;
   }
+
+  // Helper to compare waybill numbers and find the highest
+  function compareWaybillNumbers(wb1, wb2) {
+    if (!wb1 || !/^\d{3}-\d{4}$/.test(wb1)) return wb2;
+    if (!wb2 || !/^\d{3}-\d{4}$/.test(wb2)) return wb1;
+    
+    const [prefix1, num1] = wb1.split('-').map((n, i) => i === 0 ? n : parseInt(n, 10));
+    const [prefix2, num2] = wb2.split('-').map((n, i) => i === 0 ? n : parseInt(n, 10));
+    
+    // Compare prefixes first (as strings)
+    if (prefix1 !== prefix2) {
+      return prefix1 > prefix2 ? wb1 : wb2;
+    }
+    // If prefixes are same, compare numbers
+    return num1 > num2 ? wb1 : wb2;
+  }
+
+  // Save latest waybill to localStorage
+  const saveLatestWaybillToStorage = (waybill) => {
+    // Check feature flag before saving
+    if (!ENABLE_BILLING_WAYBILL_STORAGE) return;
+    
+    if (!waybill || !/^\d{3}-\d{4}$/.test(waybill)) return;
+    
+    const stored = localStorage.getItem('spareParts_latestWaybill');
+    const highest = compareWaybillNumbers(stored || '000-0000', waybill);
+    localStorage.setItem('spareParts_latestWaybill', highest);
+  };
+
+  // Load latest waybill from localStorage
+  const loadLatestWaybillFromStorage = () => {
+    const stored = localStorage.getItem('spareParts_latestWaybill');
+    return stored && /^\d{3}-\d{4}$/.test(stored) ? stored : null;
+  };
+
+  // Helper to increment waybill number
+  const incrementWaybill = (waybill) => {
+    if (!waybill || !/^\d{3}-\d{4}$/.test(waybill)) return '000-0001';
+    const [prefix, num] = waybill.split('-');
+    const nextNum = (parseInt(num, 10) + 1).toString().padStart(4, '0');
+    return `${prefix}-${nextNum}`;
+  };
 
   // Add this state
   const [drList, setDrList] = useState([]);
@@ -405,16 +453,59 @@ export default function Billing() {
   };
 
   const startNewStatement = () => {
+    // If there are items in the current statement, show confirmation modal
     if (billingStatement.length > 0) {
-      if (!window.confirm('Starting a new billing statement will clear the current one. Do you want to continue?')) {
-        return;
-      }
+      // Generate a default name based on current date/time
+      const now = new Date();
+      const defaultName = `Statement_${now.toISOString().slice(0, 10)}_${now.toTimeString().slice(0, 5).replace(':', '-')}`;
+      setNewStatementSaveName(defaultName);
+      setNewStatementModalOpen(true);
+      return;
     }
     
+    // If no items, just start new
+    clearAndStartNew();
+  };
+
+  const clearAndStartNew = () => {
     setBillingStatement([]);
     setCurrentStatementName('Untitled');
     localStorage.removeItem("currentStatementName");
     console.log('Started new billing statement');
+  };
+
+  const handleSaveAndNew = () => {
+    const statementName = newStatementSaveName.trim() || `Statement_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
+    
+    // Save current statement
+    const statementData = {
+      billingStatement,
+      drList,
+      timestamp: new Date().toISOString(),
+      version: '1.0'
+    };
+
+    const updatedSavedStatements = {
+      ...savedStatements,
+      [statementName]: statementData
+    };
+
+    setSavedStatements(updatedSavedStatements);
+    
+    // Save to localStorage
+    localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+    
+    // Clear and start new
+    clearAndStartNew();
+    setNewStatementModalOpen(false);
+    setNewStatementSaveName('');
+    console.log(`Saved billing statement "${statementName}" and started new`);
+  };
+
+  const handleNewWithoutSaving = () => {
+    clearAndStartNew();
+    setNewStatementModalOpen(false);
+    setNewStatementSaveName('');
   };
 
   // Filter billing statement based on search
@@ -693,7 +784,14 @@ export default function Billing() {
   };
 
   const saveWaybillEdit = () => {
-    updateBillingItem(editWaybillPopup.drId, "waybillNo", editWaybillPopup.value);
+    const waybillNo = editWaybillPopup.value;
+    updateBillingItem(editWaybillPopup.drId, "waybillNo", waybillNo);
+    
+    // Save to localStorage if it's a valid waybill number
+    if (waybillNo && /^\d{3}-\d{4}$/.test(waybillNo)) {
+      saveLatestWaybillToStorage(waybillNo);
+    }
+    
     closeWaybillEdit();
   };
 
@@ -789,7 +887,17 @@ export default function Billing() {
 
   // Manual Add DR functions
   const openManualAddModal = () => {
-    setManualAddForm({ groupNo: '', drNo: '', waybillNo: '', declaredAmount: '' });
+    // Load latest waybill and suggest the next one
+    // (Reading from storage is allowed even if saving is disabled)
+    const latestWaybill = loadLatestWaybillFromStorage();
+    const suggestedWaybill = latestWaybill ? incrementWaybill(latestWaybill) : '000-0001';
+    
+    setManualAddForm({ 
+      groupNo: '', 
+      drNo: '', 
+      waybillNo: suggestedWaybill, 
+      declaredAmount: '' 
+    });
     setManualAddModalOpen(true);
   };
 
@@ -831,6 +939,11 @@ export default function Billing() {
 
       // Save to convex
       await saveDr({ data: [formattedData] });
+      
+      // Save waybill to localStorage if it's a valid waybill number
+      if (waybillNo && /^\d{3}-\d{4}$/.test(waybillNo)) {
+        saveLatestWaybillToStorage(waybillNo);
+      }
       
       // Close modal and reset form
       closeManualAddModal();
@@ -1379,7 +1492,10 @@ export default function Billing() {
               </button>
               <button
                 className="px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
-                onClick={() => setLoadModalOpen(true)}
+                onClick={() => {
+                  loadSavedStatements();
+                  setLoadModalOpen(true);
+                }}
                 title="Load Saved Billing Statement"
               >
                 Load
@@ -1971,42 +2087,125 @@ export default function Billing() {
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto">
-              <div className="space-y-2">
-                {Object.entries(savedStatements).map(([name, data]) => (
-                  <div
-                    key={name}
-                    className={`flex items-center justify-between p-3 border rounded-lg ${
-                      currentStatementName === name ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{name}</div>
-                      <div className="text-sm text-gray-500">
-                        {data.billingStatement?.length || 0} items • 
-                        Saved {data.timestamp ? new Date(data.timestamp).toLocaleDateString() : 'Unknown'}
+              {/* Recent Statements Section */}
+              {(() => {
+                // Sort statements by timestamp (most recent first)
+                const sortedStatements = Object.entries(savedStatements).sort((a, b) => {
+                  const timeA = a[1].timestamp ? new Date(a[1].timestamp).getTime() : 0;
+                  const timeB = b[1].timestamp ? new Date(b[1].timestamp).getTime() : 0;
+                  return timeB - timeA; // Most recent first
+                });
+
+                // Get recent statements (last 10)
+                const recentStatements = sortedStatements.slice(0, 10);
+                const otherStatements = sortedStatements.slice(10);
+
+                return (
+                  <div className="space-y-4">
+                    {/* Recent Statements */}
+                    {recentStatements.length > 0 && (
+                      <div>
+                        <div className="text-sm font-semibold text-gray-700 mb-2 px-2">
+                          Recent Statements ({recentStatements.length})
+                        </div>
+                        <div className="space-y-2">
+                          {recentStatements.map(([name, data]) => (
+                            <div
+                              key={name}
+                              className={`flex items-center justify-between p-3 border rounded-lg ${
+                                currentStatementName === name ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">{name}</div>
+                                <div className="text-sm text-gray-500">
+                                  {data.billingStatement?.length || 0} items • 
+                                  {data.timestamp ? (
+                                    <>
+                                      {new Date(data.timestamp).toLocaleDateString()} at {new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                  ) : (
+                                    'Unknown date'
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  onClick={() => {
+                                    loadStatement(name);
+                                    setLoadModalOpen(false);
+                                  }}
+                                  disabled={currentStatementName === name}
+                                >
+                                  {currentStatementName === name ? 'Current' : 'Load'}
+                                </button>
+                                <button
+                                  className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                                  onClick={() => deleteStatement(name)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                        onClick={() => {
-                          loadStatement(name);
-                          setLoadModalOpen(false);
-                        }}
-                        disabled={currentStatementName === name}
-                      >
-                        {currentStatementName === name ? 'Current' : 'Load'}
-                      </button>
-                      <button
-                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                        onClick={() => deleteStatement(name)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    )}
+
+                    {/* Other Statements */}
+                    {otherStatements.length > 0 && (
+                      <div>
+                        <div className="text-sm font-semibold text-gray-700 mb-2 px-2">
+                          All Statements ({otherStatements.length})
+                        </div>
+                        <div className="space-y-2">
+                          {otherStatements.map(([name, data]) => (
+                            <div
+                              key={name}
+                              className={`flex items-center justify-between p-3 border rounded-lg ${
+                                currentStatementName === name ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">{name}</div>
+                                <div className="text-sm text-gray-500">
+                                  {data.billingStatement?.length || 0} items • 
+                                  {data.timestamp ? (
+                                    <>
+                                      {new Date(data.timestamp).toLocaleDateString()} at {new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                  ) : (
+                                    'Unknown date'
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  onClick={() => {
+                                    loadStatement(name);
+                                    setLoadModalOpen(false);
+                                  }}
+                                  disabled={currentStatementName === name}
+                                >
+                                  {currentStatementName === name ? 'Current' : 'Load'}
+                                </button>
+                                <button
+                                  className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                                  onClick={() => deleteStatement(name)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           )}
           <div className="flex justify-end gap-2 mt-4">
@@ -2015,6 +2214,57 @@ export default function Billing() {
               onClick={() => setLoadModalOpen(false)}
             >
               Close
+            </button>
+          </div>
+        </Modal>
+
+        {/* New Statement Confirmation Modal */}
+        <Modal open={newStatementModalOpen} onClose={() => setNewStatementModalOpen(false)}>
+          <h2 className="text-lg font-bold mb-4">Start New Billing Statement</h2>
+          <div className="mb-4">
+            <p className="text-gray-700 mb-4">
+              You have <strong>{billingStatement.length} items</strong> in your current billing statement. 
+              What would you like to do?
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Save current statement as (optional):
+              </label>
+              <input
+                type="text"
+                value={newStatementSaveName}
+                onChange={(e) => setNewStatementSaveName(e.target.value)}
+                placeholder="Enter statement name"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newStatementSaveName.trim()) {
+                    handleSaveAndNew();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={() => setNewStatementModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"
+              onClick={handleNewWithoutSaving}
+            >
+              New without Saving
+            </button>
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={handleSaveAndNew}
+            >
+              Save & New
             </button>
           </div>
         </Modal>

@@ -63,6 +63,10 @@ function SpareParts() {
   const [dashboardFileName, setDashboardFileName] = useState('');
   const [refNoFilter, setRefNoFilter] = useState('all'); // 'all', 'reviewed', 'unreviewed'
   const [waybillDisabled, setWaybillDisabled] = useState(false);
+  const [latestStoredWaybill, setLatestStoredWaybill] = useState('');
+  const [editingLatestWaybill, setEditingLatestWaybill] = useState(false);
+  const [tempLatestWaybill, setTempLatestWaybill] = useState('');
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const fileInputRef = useRef();
 
@@ -81,6 +85,44 @@ function SpareParts() {
     return `${prefix}-${num.toString().padStart(4, '0')}`;
   }
 
+  // Helper to compare waybill numbers and find the highest
+  function compareWaybillNumbers(wb1, wb2) {
+    if (!wb1 || !/^\d{3}-\d{4}$/.test(wb1)) return wb2;
+    if (!wb2 || !/^\d{3}-\d{4}$/.test(wb2)) return wb1;
+    
+    const [prefix1, num1] = wb1.split('-').map((n, i) => i === 0 ? n : parseInt(n, 10));
+    const [prefix2, num2] = wb2.split('-').map((n, i) => i === 0 ? n : parseInt(n, 10));
+    
+    // Compare prefixes first (as strings)
+    if (prefix1 !== prefix2) {
+      return prefix1 > prefix2 ? wb1 : wb2;
+    }
+    // If prefixes are same, compare numbers
+    return num1 > num2 ? wb1 : wb2;
+  }
+
+  // Helper to get highest waybill from an array of waybills
+  function getHighestWaybill(waybills) {
+    return waybills.reduce((highest, current) => {
+      return compareWaybillNumbers(highest, current);
+    }, '000-0000');
+  }
+
+  // Save latest waybill to localStorage
+  const saveLatestWaybillToStorage = (waybill) => {
+    if (!waybill || !/^\d{3}-\d{4}$/.test(waybill)) return;
+    
+    const stored = localStorage.getItem('spareParts_latestWaybill');
+    const highest = compareWaybillNumbers(stored || '000-0000', waybill);
+    localStorage.setItem('spareParts_latestWaybill', highest);
+  };
+
+  // Load latest waybill from localStorage
+  const loadLatestWaybillFromStorage = () => {
+    const stored = localStorage.getItem('spareParts_latestWaybill');
+    return stored && /^\d{3}-\d{4}$/.test(stored) ? stored : null;
+  };
+
   // Update useEffect for globalHousewayBill to use group keys
   useEffect(() => {
     if (!/^[\d]{3}-[\d]{4}$/.test(globalHousewayBill) || !jsonData) return;
@@ -96,15 +138,37 @@ function SpareParts() {
     });
   }, [globalHousewayBill, jsonData]);
 
+  // Load latest waybill from localStorage on mount
+  useEffect(() => {
+    const savedWaybill = loadLatestWaybillFromStorage();
+    if (savedWaybill && !globalHousewayBill) {
+      setGlobalHousewayBill(savedWaybill);
+    }
+    if (savedWaybill) setLatestStoredWaybill(savedWaybill);
+  }, []);
+
+  // Refresh the displayed stored waybill when the modal opens
+  useEffect(() => {
+    if (modalOpen) {
+      const savedWaybill = loadLatestWaybillFromStorage();
+      setLatestStoredWaybill(savedWaybill || '');
+    }
+  }, [modalOpen]);
+
   // On file load, initialize housewayBillNos and reviewedRefs by group key
   useEffect(() => {
     if (jsonData && jsonData.length > 0) {
       const groups = groupByParenthesis(jsonData);
+      
+      // Load saved waybill if globalHousewayBill is empty
+      const savedWaybill = loadLatestWaybillFromStorage();
+      const initialWaybill = globalHousewayBill || savedWaybill || '000-0001';
+      
       setHousewayBillNos(prev => {
         const updated = { ...prev };
         Object.keys(groups).forEach((key, i) => {
           if (!updated[key]) {
-            updated[key] = { value: incrementHousewayBill(globalHousewayBill || '000-0001', i), _auto: true };
+            updated[key] = { value: incrementHousewayBill(initialWaybill, i), _auto: true };
           }
         });
         return updated;
@@ -116,7 +180,9 @@ function SpareParts() {
         });
         return updated;
       });
-      if (!globalHousewayBill) setGlobalHousewayBill('000-0001');
+      if (!globalHousewayBill) {
+        setGlobalHousewayBill(initialWaybill);
+      }
     }
   }, [jsonData]);
   const getSavedDr = useQuery(api.dr.getSavedDr, jsonData ? {
@@ -241,9 +307,10 @@ function SpareParts() {
       item["REF NO."]?.includes(`(${idx})`)
     );
 
+    const waybillNo = housewayBillNos[idx].value;
     data = data.map(item => ({
       ...item,
-      waybill_no: housewayBillNos[idx].value
+      waybill_no: waybillNo
     }));
 
     try {
@@ -265,6 +332,17 @@ function SpareParts() {
         dispatched_by: item["DISPATCHED BY:"] || null
       }));
       await saveDr({ data: formattedData });
+      
+      // Save the waybill number to localStorage as latest
+      if (waybillNo) {
+        saveLatestWaybillToStorage(waybillNo);
+        // Also update globalHousewayBill if this is higher
+        const currentHighest = compareWaybillNumbers(globalHousewayBill || '000-0000', waybillNo);
+        if (currentHighest === waybillNo) {
+          setGlobalHousewayBill(waybillNo);
+        }
+      }
+      
       // await saveWaybill({ data });
       setReviewedRefs(prev => ({ ...prev, [idx]: true }));
       // setWaybillDisabled(false);
@@ -311,6 +389,16 @@ function SpareParts() {
         formatted = formatted.slice(0, 3) + '-' + formatted.slice(3, 7);
       }
       setHousewayBillNos(prev => ({ ...prev, [idx]: { value: formatted, _auto: false } }));
+      
+      // Save to localStorage if it's a complete waybill number
+      if (/^\d{3}-\d{4}$/.test(formatted)) {
+        saveLatestWaybillToStorage(formatted);
+        // Update globalHousewayBill if this is higher
+        const currentHighest = compareWaybillNumbers(globalHousewayBill || '000-0000', formatted);
+        if (currentHighest === formatted) {
+          setGlobalHousewayBill(formatted);
+        }
+      }
     }
   };
 
@@ -318,6 +406,31 @@ function SpareParts() {
   function getHousewayBill(idx) {
     return housewayBillNos[idx]?.value || '';
   }
+
+  // Reset all auto-generated waybills
+  const resetAllAutoWaybills = () => {
+    if (!window.confirm('Are you sure you want to reset all auto-generated waybill numbers? This will regenerate waybills for all DRs based on the current base waybill.')) {
+      return;
+    }
+
+    if (!jsonData || jsonData.length === 0) return;
+
+    const groups = groupByParenthesis(jsonData);
+    const baseWaybill = globalHousewayBill || latestStoredWaybill || '000-0001';
+    
+    setHousewayBillNos(prev => {
+      const updated = { ...prev };
+      Object.keys(groups).forEach((key, i) => {
+        // Only reset auto-generated waybills (keep manually edited ones)
+        if (prev[key] && prev[key]._auto) {
+          updated[key] = { value: incrementHousewayBill(baseWaybill, i), _auto: true };
+        }
+      });
+      return updated;
+    });
+
+    console.log('Reset all auto-generated waybills');
+  };
 
   const cloneHeadStyles = () => {
     return Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
@@ -646,6 +759,69 @@ function SpareParts() {
             <div className="flex justify-between items-center border-b px-8 py-5 bg-gray-50 sticky top-0 z-10">
               <div className="flex items-center gap-8">
                 <h2 className="text-2xl font-bold text-gray-900">Spare Parts Details</h2>
+                {latestStoredWaybill && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Last Waybill:</label>
+                    {editingLatestWaybill ? (
+                      <>
+                        <input
+                          type="text"
+                          className="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="000-0000"
+                          value={tempLatestWaybill}
+                          onChange={e => {
+                            let val = e.target.value.replace(/[^0-9]/g, '');
+                            if (val.length > 3) {
+                              val = val.slice(0, 3) + '-' + val.slice(3, 7);
+                            }
+                            setTempLatestWaybill(val);
+                          }}
+                          maxLength={8}
+                          style={{ width: 100 }}
+                          autoFocus
+                        />
+                        <button
+                          className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                          onClick={() => {
+                            if (/^\d{3}-\d{4}$/.test(tempLatestWaybill)) {
+                              saveLatestWaybillToStorage(tempLatestWaybill);
+                              setLatestStoredWaybill(tempLatestWaybill);
+                              setGlobalHousewayBill(tempLatestWaybill);
+                              setEditingLatestWaybill(false);
+                            } else {
+                              alert('Please enter a valid waybill format (000-0000)');
+                            }
+                          }}
+                          disabled={!/^\d{3}-\d{4}$/.test(tempLatestWaybill)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
+                          onClick={() => {
+                            setTempLatestWaybill(latestStoredWaybill);
+                            setEditingLatestWaybill(false);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span 
+                          className="px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700 border border-blue-200 cursor-pointer hover:bg-blue-100 transition"
+                          onClick={() => {
+                            setTempLatestWaybill(latestStoredWaybill);
+                            setEditingLatestWaybill(true);
+                          }}
+                          title="Click to edit"
+                        >
+                          {latestStoredWaybill}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="hidden houseway-bill-no-field flex items-center gap-2">
                   <label className="block font-medium mb-0">Last Houseway Bill No.:</label>
                   <input
@@ -664,6 +840,10 @@ function SpareParts() {
                         className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         onClick={() => {
                           setGlobalHousewayBill(tempGlobalHousewayBill);
+                          // Save to localStorage when global waybill is updated
+                          if (/^\d{3}-\d{4}$/.test(tempGlobalHousewayBill)) {
+                            saveLatestWaybillToStorage(tempGlobalHousewayBill);
+                          }
                           setEditingGlobalHousewayBill(false);
                         }}
                         disabled={!/^\d{3}-\d{4}$/.test(tempGlobalHousewayBill)}
@@ -696,7 +876,19 @@ function SpareParts() {
                   )}
                 </div>
               </div>
-              <button className="text-gray-500 hover:text-gray-700 text-3xl font-bold" onClick={() => setModalOpen(false)}>&times;</button>
+              <div className="flex items-center gap-3">
+                <button
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded hover:bg-gray-100 transition"
+                  onClick={() => setSettingsModalOpen(true)}
+                  title="Settings"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button className="text-gray-500 hover:text-gray-700 text-3xl font-bold" onClick={() => setModalOpen(false)}>&times;</button>
+              </div>
             </div>
             <div className="flex flex-1 overflow-hidden">
               {/* Left panel: REF NO. list */}
@@ -1116,6 +1308,47 @@ function SpareParts() {
                   );
                 })()}
               </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {settingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 bg-opacity-50 transition-all">
+          <div className="bg-white rounded-xl shadow-lg p-6 min-w-[340px] max-w-[90vw] relative">
+            <button 
+              onClick={() => setSettingsModalOpen(false)} 
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+            >
+              &times;
+            </button>
+            <h2 className="text-lg font-bold mb-4">Settings</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Waybill Management</h3>
+                <button
+                  className="w-full px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 border border-red-200 text-sm font-medium"
+                  onClick={() => {
+                    resetAllAutoWaybills();
+                    setSettingsModalOpen(false);
+                  }}
+                  title="Reset all auto-generated waybill numbers to recalculate based on base waybill"
+                >
+                  Reset Auto Waybills
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  This will reset all auto-generated waybill numbers. Manually edited waybills will be preserved.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                onClick={() => setSettingsModalOpen(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
