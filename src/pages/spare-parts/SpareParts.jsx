@@ -303,9 +303,15 @@ function SpareParts() {
   // Confirm review
   const handleConfirmReview = async (idx) => {
     setWaybillDisabled(true);
-    let data = jsonData.filter(item =>
-      item["REF NO."]?.includes(`(${idx})`)
-    );
+    // Use groupByParenthesis to get the actual rows for this group key
+    const groups = groupByParenthesis(jsonData);
+    const group = groups[idx];
+    if (!group) {
+      console.error('Group not found:', idx);
+      setWaybillDisabled(false);
+      return;
+    }
+    let data = group.rows;
 
     const waybillNo = housewayBillNos[idx].value;
     data = data.map(item => ({
@@ -354,9 +360,15 @@ function SpareParts() {
 
   const handleConfirmUnreview = async (idx) => {
     setWaybillDisabled(true);
-    let data = jsonData.filter(item =>
-      item["REF NO."]?.includes(`(${idx})`)
-    );
+    // Use groupByParenthesis to get the actual rows for this group key
+    const groups = groupByParenthesis(jsonData);
+    const group = groups[idx];
+    if (!group) {
+      console.error('Group not found:', idx);
+      setWaybillDisabled(false);
+      return;
+    }
+    let data = group.rows;
 
     data = data.map(item => ({
       ...item,
@@ -537,13 +549,25 @@ function SpareParts() {
     const groups = {};
     data.forEach((row, idx) => {
       const ref = row['REF NO.'];
-      const match = ref && ref.match(/\(([^)]*)\)/);
+      if (!ref) return; // Skip if no REF NO.
+      
+      let key;
+      const match = ref.match(/\(([^)]*)\)/);
       if (match) {
-        const key = match[1];
-        if (!groups[key]) groups[key] = { rows: [], indices: [] };
-        groups[key].rows.push(row);
-        groups[key].indices.push(idx);
+        // If parentheses exist, use the content inside as the key
+        key = match[1].trim();
+      } else {
+        // If no parentheses, use the REF NO. itself as the key
+        // Try to extract DR # if it exists, otherwise use the full REF NO.
+        const drMatch = ref.match(/DR\s*#\s*(\d+)/i);
+        key = drMatch ? drMatch[1] : ref.trim();
       }
+      
+      if (!key) return; // Skip if key is empty
+      
+      if (!groups[key]) groups[key] = { rows: [], indices: [] };
+      groups[key].rows.push(row);
+      groups[key].indices.push(idx);
     });
     return groups;
   }
