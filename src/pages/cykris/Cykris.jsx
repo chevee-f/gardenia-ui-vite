@@ -435,7 +435,7 @@ function Cykris() {
     </style>
   `;
     let printHtml = '';
-    let spaceHeight = '700px';
+    let spaceHeight = '607px';
     if (type === 'all') {
       printHtml += getPrintHtml('CYKRIS COPY');
       printHtml += `<div style='height: ${spaceHeight};'></div>`;
