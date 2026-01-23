@@ -29,7 +29,13 @@ export default defineSchema({
     declared_amount: v.optional(v.union(v.string(), v.null())),
     no_of_boxes: v.optional(v.union(v.float64(), v.null())),
     no_of_bundles: v.optional(v.union(v.float64(), v.null())),
-    dispatched_by: v.optional(v.union(v.string(), v.null()))
+    dispatched_by: v.optional(v.union(v.string(), v.null())),
+    type: v.optional(v.union(v.string(), v.null())),
+    description: v.optional(v.union(v.string(), v.null())),
+    destination: v.optional(v.union(v.string(), v.null())),
+    quantity: v.optional(v.union(v.string(), v.null())),
+    unit: v.optional(v.union(v.string(), v.null())),
+    reviewed: v.optional(v.boolean())
   }),
   billing_prints: defineTable({
     printDate: v.number(),

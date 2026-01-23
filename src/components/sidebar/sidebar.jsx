@@ -33,6 +33,14 @@ const TopNav = () => {
         >
           Billing
         </NavLink>
+        <NavLink
+          to="/cykris"
+          className={({ isActive }) =>
+            `py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition ${isActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'}`
+          }
+        >
+          Cykris
+        </NavLink>
       </div>
     </nav>
   );

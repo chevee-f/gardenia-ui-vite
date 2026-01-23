@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye, HiChevronDown, HiChevronUp } from 'react-icons/hi';
+import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye } from 'react-icons/hi';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
 // === CONSTANTS ===
 const COPY_LABELS = {
-  ttc: 'TTC COPY',
+  ttc: 'CYKRIS COPY',
   customer: "CUSTOMER COPY",
   carrier: 'CARRIER COPY',
 };
@@ -18,6 +18,72 @@ const EMAILS = [
 const CONTACT_NUMBERS = '09274288126/09458261900/09156153298';
 const SHIPPER_NAME = 'TRIMOTORS TECHNOLOGY CORP.';
 const HOUSEWAY_BILL_NO = 'HOUSEWAY BILL NO:';
+
+// Pricing configuration for types
+const TYPE_PRICING = {
+  "Promo Helmets": 35,
+  "Bajaj Geniune Oil": 55,
+  "Parts Including Wind Shield": 205,
+  "Bajaj Tires (Small)": 45,
+  "Truck Tires (Big)": 205,
+  "Brake Pipes": 205,
+};
+
+// Description options (can be extended, but users can also type custom values)
+const DESCRIPTION_OPTIONS = [
+  "Standard Description 1",
+  "Standard Description 2",
+  "Standard Description 3"
+];
+
+// Table column widths
+const QUANTITY_COLUMN_WIDTH = '150px';
+const UNIT_COLUMN_WIDTH = '200px';
+const DESCRIPTION_COLUMN_WIDTH = 'auto';
+const BOXES_COLUMN_WIDTH = '150px';
+
+// Destination options (can be extended, but users can also type custom values)
+const DESTINATION_OPTIONS = [
+  "AGDAO, DAVAO CITY",
+  "BAYUGAN",
+  "BISLIG",
+  "BUKIDNON",
+  "BUHANGIN",
+  "BUTUAN",
+  "CALINAN",
+  "CAGAYAN",
+  "DIGOS",
+  "DIPOLOG",
+  "ILIGAN",
+  "IMELDA",
+  "IPIL",
+  "KORONADAL",
+  "COTABATO",
+  "LILOY",
+  "LUPON",
+  "MANGAGOY, BISLIG",
+  "MARANDING, LALA",
+  "MATI",
+  "MATINA",
+  "MOLAVE",
+  "NABUNTURAN",
+  "OZAMIS",
+  "PAGADIAN",
+  "PANABO",
+  "SAMAL",
+  "SAN FRANCISCO",
+  "SAN MIGUEL",
+  "SINDANGAN",
+  "SURIGAO CITY",
+  "TAGUM",
+  "TORIL",
+  "TRENTO",
+  "ZAMBO NUÑEZ",
+  "ZAMBOANGA",
+  "SOUTH COTABATO",
+  "MISAMIS OCCIDENTAL",
+  "SULTAN KUDARAT"
+];
 
 function Cykris() {
   const [jsonData, setJsonData] = useState([]);
@@ -33,22 +99,22 @@ function Cykris() {
   const [leftPanelSearch, setLeftPanelSearch] = useState("");
   const [refNoFilter, setRefNoFilter] = useState('all');
   const [waybillDisabled, setWaybillDisabled] = useState(false);
-  const [formOpen, setFormOpen] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
-    groupNo: '',
     drNo: '',
-    drsiDate: '',
-    nameOfDealer: '',
-    contactPerson: '',
-    contactNo: '',
-    address: '',
-    declaredAmount: '',
-    noOfBoxes: '',
-    noOfBundles: '',
-    dispatchedBy: ''
+    destination: '',
+    rows: [
+      {
+        quantity: '',
+        unit: '',
+        type: '',
+        description: '',
+        boxes: ''
+      }
+    ]
   });
 
   // Load from localStorage on mount
@@ -131,7 +197,7 @@ function Cykris() {
     }))
   } : "skip");
 
-  // Check for saved Cykris DRs and mark them as reviewed
+  // Check for saved Cykris DRs and mark them as reviewed based on reviewed field
   useEffect(() => {
     if (getSavedCykris && jsonData && jsonData.length > 0) {
       const groups = groupByParenthesis(jsonData);
@@ -142,11 +208,14 @@ function Cykris() {
         Object.keys(groups).forEach(groupKey => {
           const groupRows = groups[groupKey].rows;
           
-          const hasSavedDr = groupRows.some(row => 
-            getSavedCykris.some(savedDr => savedDr.ref_no === row["REF NO."] && savedDr.waybill_no !== "")
+          // Check if any row in the group is reviewed
+          const hasReviewedDr = groupRows.some(row => 
+            getSavedCykris.some(savedDr => 
+              savedDr.ref_no === row["REF NO."] && savedDr.reviewed === true
+            )
           );
           
-          if (hasSavedDr) {
+          if (hasReviewedDr) {
             updated[groupKey] = true;
           }
         });
@@ -185,26 +254,62 @@ function Cykris() {
       item["REF NO."]?.includes(`(${idx})`)
     );
 
-    data = data.map(item => ({
-      ...item,
-      waybill_no: housewayBillNos[idx].value
-    }));
+    // Get existing saved data to preserve all fields and use correct waybill_no
+    const existingSavedData = getSavedCykris?.filter(savedDr => 
+      data.some(item => savedDr.ref_no === item["REF NO."])
+    ) || [];
 
     try {
-      const formattedData = data.map(item => ({
-        ref_no: item["REF NO."] || "",
-        group_ref_no: idx,
-        waybill_no: item["waybill_no"] || "",
-        drsi_date: item["DR/SI DATE"] || null,
-        name_of_dealer: item["NAME OF DEALER"] || null,
-        contact_person: item["Contact Person"] || null,
-        contact_no: item["Contact No."] || null,
-        address: item["ADDRESS"] || null,
-        declared_amount: item["DECLARED AMOUNT"] ? String(item["DECLARED AMOUNT"]) : null,
-        no_of_boxes: item["No. Of Boxes"] ? parseFloat(item["No. Of Boxes"]) : null,
-        no_of_bundles: item["NO. OF BUNDLES"] ? parseFloat(item["NO. OF BUNDLES"]) : null,
-        dispatched_by: item["DISPATCHED BY:"] || null
-      }));
+      const formattedData = data.map(item => {
+        const existing = existingSavedData.find(savedDr => savedDr.ref_no === item["REF NO."]);
+        
+        if (existing) {
+          // Update existing record - preserve all data, just set reviewed to true
+          return {
+            ref_no: existing.ref_no,
+            group_ref_no: existing.group_ref_no,
+            waybill_no: existing.waybill_no || "",
+            drsi_date: existing.drsi_date,
+            name_of_dealer: existing.name_of_dealer,
+            contact_person: existing.contact_person,
+            contact_no: existing.contact_no,
+            address: existing.address,
+            declared_amount: existing.declared_amount,
+            no_of_boxes: existing.no_of_boxes,
+            no_of_bundles: existing.no_of_bundles,
+            dispatched_by: existing.dispatched_by,
+            type: existing.type,
+            description: existing.description,
+            destination: existing.destination,
+            quantity: existing.quantity,
+            unit: existing.unit,
+            reviewed: true
+          };
+        } else {
+          // If not found in saved data, use current jsonData (new record)
+          return {
+            ref_no: item["REF NO."] || "",
+            group_ref_no: idx,
+            waybill_no: item["waybill_no"] || "",
+            drsi_date: item["DR/SI DATE"] || null,
+            name_of_dealer: item["NAME OF DEALER"] || null,
+            contact_person: item["Contact Person"] || null,
+            contact_no: item["Contact No."] || null,
+            address: item["ADDRESS"] || item["DESTINATION"] || null,
+            declared_amount: item["DECLARED AMOUNT"] ? String(item["DECLARED AMOUNT"]) : null,
+            no_of_boxes: item["No. Of Boxes"] ? parseFloat(item["No. Of Boxes"]) : null,
+            no_of_bundles: item["NO. OF BUNDLES"] ? parseFloat(item["NO. OF BUNDLES"]) : null,
+            dispatched_by: item["DISPATCHED BY:"] || null,
+            type: item["TYPE"] || null,
+            description: item["DESCRIPTION"] || null,
+            destination: item["DESTINATION"] || item["ADDRESS"] || null,
+            quantity: item["QUANTITY"] || null,
+            unit: item["UNIT"] || null,
+            reviewed: true
+          };
+        }
+      });
+      
       await saveCykris({ data: formattedData });
       setReviewedRefs(prev => ({ ...prev, [idx]: true }));
     } catch (err) {
@@ -218,22 +323,69 @@ function Cykris() {
       item["REF NO."]?.includes(`(${idx})`)
     );
 
-    data = data.map(item => ({
-      ...item,
-      waybill_no: housewayBillNos[idx].value
-    }));
+    // Get existing saved data to preserve all fields
+    const existingSavedData = getSavedCykris?.filter(savedDr => 
+      data.some(item => savedDr.ref_no === item["REF NO."])
+    ) || [];
 
     try {
-      const formattedData = data.map(item => ({
-        ref_no: item["REF NO."] || "",
-        group_ref_no: idx,
-        waybill_no: item["waybill_no"] || ""
-      }));
-      await deleteCykris({ data: formattedData });
+      // Update reviewed status to false while preserving all other data
+      const formattedData = data.map(item => {
+        const existing = existingSavedData.find(savedDr => savedDr.ref_no === item["REF NO."]);
+        
+        if (existing) {
+          // Preserve all existing data from database, just set reviewed to false
+          return {
+            ref_no: existing.ref_no,
+            group_ref_no: existing.group_ref_no,
+            waybill_no: existing.waybill_no || "",
+            drsi_date: existing.drsi_date,
+            name_of_dealer: existing.name_of_dealer,
+            contact_person: existing.contact_person,
+            contact_no: existing.contact_no,
+            address: existing.address,
+            declared_amount: existing.declared_amount,
+            no_of_boxes: existing.no_of_boxes,
+            no_of_bundles: existing.no_of_bundles,
+            dispatched_by: existing.dispatched_by,
+            type: existing.type,
+            description: existing.description,
+            destination: existing.destination,
+            quantity: existing.quantity,
+            unit: existing.unit,
+            reviewed: false
+          };
+        } else {
+          // If not found in saved data, use current jsonData
+          return {
+            ref_no: item["REF NO."] || "",
+            group_ref_no: idx,
+            waybill_no: item["waybill_no"] || "",
+            drsi_date: item["DR/SI DATE"] || null,
+            name_of_dealer: item["NAME OF DEALER"] || null,
+            contact_person: item["Contact Person"] || null,
+            contact_no: item["Contact No."] || null,
+            address: item["ADDRESS"] || item["DESTINATION"] || null,
+            declared_amount: item["DECLARED AMOUNT"] ? String(item["DECLARED AMOUNT"]) : null,
+            no_of_boxes: item["No. Of Boxes"] ? parseFloat(item["No. Of Boxes"]) : null,
+            no_of_bundles: item["NO. OF BUNDLES"] ? parseFloat(item["NO. OF BUNDLES"]) : null,
+            dispatched_by: item["DISPATCHED BY:"] || null,
+            type: item["TYPE"] || null,
+            description: item["DESCRIPTION"] || null,
+            destination: item["DESTINATION"] || item["ADDRESS"] || null,
+            quantity: item["QUANTITY"] || null,
+            unit: item["UNIT"] || null,
+            reviewed: false
+          };
+        }
+      });
+      
+      await saveCykris({ data: formattedData });
       setReviewedRefs(prev => ({ ...prev, [idx]: false }));
       setWaybillDisabled(false);
     } catch (err) {
-      console.error('Failed to delete cykris:', err);
+      console.error('Failed to update cykris:', err);
+      setWaybillDisabled(false);
     }
   }
 
@@ -283,15 +435,16 @@ function Cykris() {
     </style>
   `;
     let printHtml = '';
+    let spaceHeight = '700px';
     if (type === 'all') {
-      printHtml += getPrintHtml('TTC COPY');
-      printHtml += `<div style='height: 700px;'></div>`;
+      printHtml += getPrintHtml('CYKRIS COPY');
+      printHtml += `<div style='height: ${spaceHeight};'></div>`;
       printHtml += getPrintHtml("CUSTOMER COPY");
-      printHtml += `<div style='height: 700px;'></div>`;
+      printHtml += `<div style='height: ${spaceHeight};'></div>`;
       printHtml += getPrintHtml('CARRIER COPY');
     } else {
       let label = '';
-      if (type === 'ttc') label = 'TTC COPY';
+      if (type === 'ttc') label = 'CYKRIS COPY';
       if (type === 'customer') label = "CUSTOMER COPY";
       if (type === 'carrier') label = 'CARRIER COPY';
       printHtml = getPrintHtml(label);
@@ -307,7 +460,7 @@ function Cykris() {
       return `
         <div style='position: relative; border: 1px solid; padding-bottom: 20px'>
           ${content.innerHTML}
-          <div style='position: absolute;right: 200px;font-size: 14px;font-weight: bold;'>
+          <div style='position: absolute;right: 20px;font-size: 14px;font-weight: bold;'>
             <span style=''>${label}</span>
           </div>
         </div>
@@ -326,7 +479,7 @@ function Cykris() {
     let printHtml = '';
     typesArr.forEach((type, i) => {
       let label = '';
-      if (type === 'ttc') label = 'TTC COPY';
+      if (type === 'ttc') label = 'CYKRIS COPY';
       if (type === 'customer') label = "CUSTOMER COPY";
       if (type === 'carrier') label = 'CARRIER COPY';
       if (i > 0) printHtml += `<div style='height: 700px;'></div>`;
@@ -367,6 +520,13 @@ function Cykris() {
     return groups;
   }
 
+  // Helper to extract DR# from REF NO.
+  function getDRNumber(refNo) {
+    if (!refNo) return '';
+    const match = refNo.match(/DR\s*#\s*([^\s\(]+)/);
+    return match ? match[1] : refNo;
+  }
+
   // Handle form input change
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -375,83 +535,308 @@ function Cykris() {
   // Clear form
   const clearForm = () => {
     setFormData({
-      groupNo: '',
       drNo: '',
-      drsiDate: '',
-      nameOfDealer: '',
-      contactPerson: '',
-      contactNo: '',
-      address: '',
-      declaredAmount: '',
-      noOfBoxes: '',
-      noOfBundles: '',
-      dispatchedBy: ''
+      destination: '',
+      rows: [
+        {
+          quantity: '',
+          unit: '',
+          type: '',
+          description: '',
+          boxes: ''
+        }
+      ]
     });
     setEditingIndex(null);
   };
 
+  // Add a new row to the form
+  const addFormRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      rows: [...prev.rows, {
+        quantity: '',
+        unit: '',
+        type: '',
+        description: '',
+        boxes: ''
+      }]
+    }));
+  };
+
+  // Remove a row from the form
+  const removeFormRow = (index) => {
+    if (formData.rows.length <= 1) {
+      alert('At least one row is required');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      rows: prev.rows.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Handle form row change
+  const handleFormRowChange = (rowIndex, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      rows: prev.rows.map((row, i) => 
+        i === rowIndex ? { ...row, [field]: value } : row
+      )
+    }));
+  };
+
   // Add or update DR
-  const handleSubmitDR = () => {
-    if (!formData.groupNo.trim() || !formData.drNo.trim()) {
-      alert('Group No and DR No are required');
+  const handleSubmitDR = async () => {
+    if (!formData.drNo.trim()) {
+      alert('DR # is required');
+      return;
+    }
+    if (!formData.destination.trim()) {
+      alert('Destination is required');
+      return;
+    }
+    if (formData.rows.length === 0) {
+      alert('At least one row is required');
       return;
     }
 
-    const newDR = {
-      "REF NO.": `DR # ${formData.drNo} (${formData.groupNo})`,
-      "DR/SI DATE": formData.drsiDate,
-      "NAME OF DEALER": formData.nameOfDealer,
-      "Contact Person": formData.contactPerson,
-      "Contact No.": formData.contactNo,
-      "ADDRESS": formData.address,
-      "DECLARED AMOUNT": formData.declaredAmount,
-      "No. Of Boxes": formData.noOfBoxes,
-      "NO. OF BUNDLES": formData.noOfBundles,
-      "DISPATCHED BY:": formData.dispatchedBy,
-      "waybill_no": ""
-    };
-
-    if (editingIndex !== null) {
-      // Update existing
-      setJsonData(prev => {
-        const updated = [...prev];
-        updated[editingIndex] = newDR;
-        return updated;
-      });
-    } else {
-      // Add new
-      setJsonData(prev => [...prev, newDR]);
+    // Validate all rows
+    for (let i = 0; i < formData.rows.length; i++) {
+      const row = formData.rows[i];
+      if (!row.quantity.trim()) {
+        alert(`Row ${i + 1}: Quantity is required`);
+        return;
+      }
+      if (!/^\d+$/.test(row.quantity)) {
+        alert(`Row ${i + 1}: Quantity must be a number`);
+        return;
+      }
+      if (!row.boxes.trim()) {
+        alert(`Row ${i + 1}: Boxes is required`);
+        return;
+      }
+      if (!/^\d+$/.test(row.boxes)) {
+        alert(`Row ${i + 1}: Boxes must be a number`);
+        return;
+      }
     }
 
-    clearForm();
+    // Generate a group number based on DR # (or use DR # as group)
+    const groupNo = formData.drNo;
+
+    // Create multiple DR entries - one for each row
+    const newDRs = formData.rows.map((row, index) => {
+      // Calculate amount based on type and quantity
+      let calculatedAmount = '';
+      if (row.type && row.quantity) {
+        const price = TYPE_PRICING[row.type];
+        if (price) {
+          const qty = parseFloat(row.quantity);
+          calculatedAmount = (qty * price).toFixed(2);
+        }
+      }
+
+      const refNo = `DR # ${formData.drNo} (${groupNo})`;
+
+      return {
+        "REF NO.": refNo,
+        "DR/SI DATE": '',
+        "NAME OF DEALER": '',
+        "Contact Person": '',
+        "Contact No.": '',
+        "ADDRESS": formData.destination,
+        "DECLARED AMOUNT": calculatedAmount,
+        "No. Of Boxes": row.boxes,
+        "NO. OF BUNDLES": '',
+        "DISPATCHED BY:": '',
+        "QUANTITY": row.quantity,
+        "UNIT": row.unit,
+        "TYPE": row.type,
+        "DESCRIPTION": row.description,
+        "DESTINATION": formData.destination,
+        "waybill_no": ""
+      };
+    });
+
+    // Prepare data for database - one entry per row
+    const dbDataArray = formData.rows.map((row) => {
+      let calculatedAmount = '';
+      if (row.type && row.quantity) {
+        const price = TYPE_PRICING[row.type];
+        if (price) {
+          const qty = parseFloat(row.quantity);
+          calculatedAmount = (qty * price).toFixed(2);
+        }
+      }
+
+      const refNo = `DR # ${formData.drNo} (${groupNo})`;
+
+      return {
+        ref_no: refNo,
+        group_ref_no: groupNo,
+        waybill_no: "",
+        drsi_date: null,
+        name_of_dealer: null,
+        contact_person: null,
+        contact_no: null,
+        address: formData.destination || null,
+        declared_amount: calculatedAmount || null,
+        no_of_boxes: parseFloat(row.boxes) || null,
+        no_of_bundles: null,
+        dispatched_by: null,
+        type: row.type || null,
+        description: row.description || null,
+        destination: formData.destination || null,
+        quantity: row.quantity || null,
+        unit: row.unit || null,
+        reviewed: false,
+      };
+    });
+
+    try {
+      // Save to database
+      console.log('Saving DR with multiple rows:', {
+        drNo: formData.drNo,
+        groupNo: groupNo,
+        rowCount: dbDataArray.length,
+        rows: dbDataArray.map((row, idx) => ({
+          index: idx,
+          description: row.description,
+          quantity: row.quantity,
+          unit: row.unit,
+          type: row.type
+        }))
+      });
+      await saveCykris({ data: dbDataArray });
+      console.log('Successfully saved', dbDataArray.length, 'rows for DR#', formData.drNo);
+
+      if (editingIndex !== null) {
+        // For editing, we need to remove all existing rows for this DR from database and local state
+        // Find all existing rows with the same group number
+        const existingRows = jsonData.filter(item => {
+          const ref = item["REF NO."];
+          const match = ref && ref.match(/\(([^)]*)\)/);
+          return match && match[1] === groupNo;
+        });
+        
+        // Delete old rows from database
+        if (existingRows.length > 0) {
+          const deleteData = existingRows.map(item => ({
+            ref_no: item["REF NO."],
+            group_ref_no: groupNo,
+            waybill_no: item["waybill_no"] || ""
+          }));
+          console.log('Deleting old rows for DR#', groupNo, ':', deleteData.length, 'rows');
+          try {
+            await deleteCykris({ data: deleteData });
+            console.log('Successfully deleted old rows');
+          } catch (deleteErr) {
+            console.error('Failed to delete old rows:', deleteErr);
+            // Continue anyway - we'll still save the new rows
+          }
+        }
+        
+        // Remove from local state and add new ones
+        setJsonData(prev => {
+          const filtered = prev.filter(item => {
+            const ref = item["REF NO."];
+            const match = ref && ref.match(/\(([^)]*)\)/);
+            return !match || match[1] !== groupNo;
+          });
+          return [...filtered, ...newDRs];
+        });
+      } else {
+        // Add new
+        setJsonData(prev => [...prev, ...newDRs]);
+      }
+
+      clearForm();
+      setFormOpen(false);
+    } catch (err) {
+      console.error('Failed to save DR:', err);
+      alert('Failed to save DR. Please try again.');
+    }
   };
 
-  // Edit DR
+  // Edit DR - finds all rows for the same DR group
   const handleEdit = (index) => {
     const dr = jsonData[index];
-    const refMatch = dr["REF NO."].match(/DR\s*#\s*(\d+)\s*\(([^)]+)\)/);
+    const refMatch = dr["REF NO."].match(/DR\s*#\s*([^\s]+)\s*\(([^)]+)\)/);
+    
+    if (!refMatch) {
+      alert('Invalid DR format');
+      return;
+    }
+
+    const drNo = refMatch[1];
+    const groupNo = refMatch[2];
+    
+    // Find all rows with the same group number
+    const allRowsForDR = jsonData.filter(item => {
+      const itemRef = item["REF NO."];
+      const itemMatch = itemRef && itemRef.match(/\(([^)]+)\)/);
+      return itemMatch && itemMatch[1] === groupNo;
+    });
+
+    // Extract rows data
+    const rows = allRowsForDR.map(row => ({
+      quantity: row["QUANTITY"] || '',
+      unit: row["UNIT"] || '',
+      type: row["TYPE"] || '',
+      description: row["DESCRIPTION"] || '',
+      boxes: row["No. Of Boxes"] || ''
+    }));
+
+    // Get destination from first row (should be same for all)
+    const destination = allRowsForDR[0]?.["DESTINATION"] || allRowsForDR[0]?.["ADDRESS"] || '';
     
     setFormData({
-      groupNo: refMatch ? refMatch[2] : '',
-      drNo: refMatch ? refMatch[1] : '',
-      drsiDate: dr["DR/SI DATE"] || '',
-      nameOfDealer: dr["NAME OF DEALER"] || '',
-      contactPerson: dr["Contact Person"] || '',
-      contactNo: dr["Contact No."] || '',
-      address: dr["ADDRESS"] || '',
-      declaredAmount: dr["DECLARED AMOUNT"] || '',
-      noOfBoxes: dr["No. Of Boxes"] || '',
-      noOfBundles: dr["NO. OF BUNDLES"] || '',
-      dispatchedBy: dr["DISPATCHED BY:"] || ''
+      drNo: drNo,
+      destination: destination,
+      rows: rows.length > 0 ? rows : [{
+        quantity: '',
+        unit: '',
+        type: '',
+        description: '',
+        boxes: ''
+      }]
     });
-    setEditingIndex(index);
+    
+    // Store the group number for editing
+    setEditingIndex(groupNo);
     setFormOpen(true);
   };
 
   // Delete DR
-  const handleDelete = (index) => {
-    if (window.confirm('Are you sure you want to delete this DR?')) {
+  const handleDelete = async (index) => {
+    if (!window.confirm('Are you sure you want to delete this DR?')) {
+      return;
+    }
+
+    const drToDelete = jsonData[index];
+    const refNo = drToDelete["REF NO."];
+    const refMatch = refNo.match(/DR\s*#\s*([^\s]+)\s*\(([^)]+)\)/);
+    const groupNo = refMatch ? refMatch[2] : '';
+    const waybillNo = drToDelete["waybill_no"] || "";
+
+    try {
+      // Delete from database if it exists
+      if (refNo && groupNo) {
+        await deleteCykris({ 
+          data: [{
+            ref_no: refNo,
+            group_ref_no: groupNo,
+            waybill_no: waybillNo
+          }]
+        });
+      }
+
+      // Remove from local state
       setJsonData(prev => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      console.error('Failed to delete DR:', err);
+      alert('Failed to delete DR. Please try again.');
     }
   };
 
@@ -470,6 +855,15 @@ function Cykris() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 text-sm font-medium transition"
+            onClick={() => {
+              clearForm();
+              setFormOpen(true);
+            }}
+          >
+            Add DR
+          </button>
+          <button
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 text-sm font-medium transition shadow"
             onClick={() => window.location.reload()}
           >
@@ -479,159 +873,23 @@ function Cykris() {
       </div>
 
       <div className="max-w-7xl mx-auto mt-6 px-6">
-        {/* Collapsible Add DR Form */}
-        <div className="bg-white rounded-2xl shadow-lg mb-6">
-          <button
-            onClick={() => setFormOpen(!formOpen)}
-            className="w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-t-2xl hover:from-blue-100 hover:to-blue-200 transition"
-          >
-            <h2 className="text-xl font-bold text-gray-900">
-              {editingIndex !== null ? 'Edit DR' : 'Add New DR'}
-            </h2>
-            {formOpen ? <HiChevronUp className="w-6 h-6" /> : <HiChevronDown className="w-6 h-6" />}
-          </button>
-          
-          {formOpen && (
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Group No *</label>
-                  <input
-                    type="text"
-                    value={formData.groupNo}
-                    onChange={(e) => handleFormChange('groupNo', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., ABC"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">DR No *</label>
-                  <input
-                    type="text"
-                    value={formData.drNo}
-                    onChange={(e) => handleFormChange('drNo', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., 12345"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">DR/SI Date</label>
-                  <input
-                    type="date"
-                    value={formData.drsiDate}
-                    onChange={(e) => handleFormChange('drsiDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name of Dealer</label>
-                  <input
-                    type="text"
-                    value={formData.nameOfDealer}
-                    onChange={(e) => handleFormChange('nameOfDealer', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
-                  <input
-                    type="text"
-                    value={formData.contactPerson}
-                    onChange={(e) => handleFormChange('contactPerson', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact No</label>
-                  <input
-                    type="text"
-                    value={formData.contactNo}
-                    onChange={(e) => handleFormChange('contactNo', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => handleFormChange('address', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Declared Amount</label>
-                  <input
-                    type="text"
-                    value={formData.declaredAmount}
-                    onChange={(e) => handleFormChange('declaredAmount', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">No. of Boxes</label>
-                  <input
-                    type="text"
-                    value={formData.noOfBoxes}
-                    onChange={(e) => handleFormChange('noOfBoxes', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">No. of Bundles</label>
-                  <input
-                    type="text"
-                    value={formData.noOfBundles}
-                    onChange={(e) => handleFormChange('noOfBundles', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dispatched By</label>
-                  <input
-                    type="text"
-                    value={formData.dispatchedBy}
-                    onChange={(e) => handleFormChange('dispatchedBy', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleSubmitDR}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold shadow-sm transition"
-                >
-                  {editingIndex !== null ? 'Update DR' : 'Add DR'}
-                </button>
-                {editingIndex !== null && (
-                  <button
-                    onClick={clearForm}
-                    className="px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold shadow-sm transition"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* DRs Table */}
         {jsonData && jsonData.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="bg-white rounded-lg shadow-lg p-4">
             {/* Search Bar */}
-            <div className="flex items-center gap-4 mb-6 relative">
+            <div className="flex items-center gap-3 mb-3 relative">
               <div className="relative flex-1 max-w-md">
                 <input
                   type="text"
                   placeholder="Search Cykris..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
                 />
-                <HiOutlineSearch className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+                <HiOutlineSearch className="absolute left-2 top-1.5 text-gray-400 w-4 h-4" />
               </div>
-              <span className="text-gray-400 text-sm">
+              <span className="text-gray-500 text-xs">
                 {Object.keys(groupByParenthesis(jsonData)).filter(key => reviewedRefs[key]).length} / {Object.keys(groupByParenthesis(jsonData)).length} groups reviewed
                 {getSavedCykris && (
                   <span className="ml-2 text-green-600">
@@ -640,25 +898,27 @@ function Cykris() {
                 )}
               </span>
               <button
-                className={`absolute right-0 flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition shadow ${jsonData && jsonData.length > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                className={`absolute right-0 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition shadow ${jsonData && jsonData.length > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                 onClick={() => setModalOpen(true)}
                 disabled={!jsonData || jsonData.length === 0}
               >
-                <HiOutlineEye className="w-5 h-5" /> Start Review & Print
+                <HiOutlineEye className="w-4 h-4" /> Start Review & Print
               </button>
             </div>
             {/* Data Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-700 bg-white rounded-xl shadow">
+              <table className="w-full text-xs text-left text-gray-700 bg-white rounded shadow">
                 <thead className="sticky top-0 z-10 text-xs text-gray-700 uppercase bg-gray-100">
                   <tr>
-                    <th className="px-4 py-3 font-bold">#</th>
-                    <th className="px-4 py-3 font-bold">REF NO.</th>
-                    <th className="px-4 py-3 font-bold">DR/SI DATE</th>
-                    <th className="px-4 py-3 font-bold">NAME OF DEALER</th>
-                    <th className="px-4 py-3 font-bold">ADDRESS</th>
-                    <th className="px-4 py-3 font-bold">DECLARED AMOUNT</th>
-                    <th className="px-4 py-3 font-bold">Actions</th>
+                    <th className="px-2 py-1.5 font-semibold">#</th>
+                    <th className="px-2 py-1.5 font-semibold">DR#</th>
+                    <th className="px-2 py-1.5 font-semibold">Destination</th>
+                    <th className="px-2 py-1.5 font-semibold">Type</th>
+                    <th className="px-2 py-1.5 font-semibold">Description</th>
+                    <th className="px-2 py-1.5 font-semibold">Qty</th>
+                    <th className="px-2 py-1.5 font-semibold">Unit</th>
+                    <th className="px-2 py-1.5 font-semibold">Amount</th>
+                    <th className="px-2 py-1.5 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -675,28 +935,48 @@ function Cykris() {
                       
                       return (
                         <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${isSaved ? 'border-l-4 border-l-green-500' : ''}`}>
-                          <td className="px-4 py-2 font-semibold text-center">
+                          <td className="px-2 py-1.5 font-medium text-center">
                             {idx + 1}
                             {isSaved && (
-                              <div className="text-xs text-green-600 font-medium mt-1">✓ Saved</div>
+                              <div className="text-xs text-green-600 font-medium mt-0.5">✓ Saved</div>
                             )}
                           </td>
-                          <td className="px-4 py-2">{row["REF NO."]}</td>
-                          <td className="px-4 py-2">{row["DR/SI DATE"]}</td>
-                          <td className="px-4 py-2">{row["NAME OF DEALER"]}</td>
-                          <td className="px-4 py-2 break-words">{row["ADDRESS"]}</td>
-                          <td className="px-4 py-2">{row["DECLARED AMOUNT"]}</td>
-                          <td className="px-4 py-2">
-                            <div className="flex gap-2">
+                          <td className="px-2 py-1.5">{getDRNumber(row["REF NO."])}</td>
+                          <td className="px-2 py-1.5 break-words">{row["DESTINATION"] || row["ADDRESS"] || '-'}</td>
+                          <td className="px-2 py-1.5">{row["TYPE"] || '-'}</td>
+                          <td className="px-2 py-1.5">{row["DESCRIPTION"] || '-'}</td>
+                          <td className="px-2 py-1.5">{row["QUANTITY"] || '-'}</td>
+                          <td className="px-2 py-1.5">{row["UNIT"] || '-'}</td>
+                          <td className="px-2 py-1.5">
+                            {(() => {
+                              // Calculate amount if not stored, or use stored amount
+                              const storedAmount = row["DECLARED AMOUNT"];
+                              if (storedAmount) return storedAmount;
+                              
+                              // Calculate from type and quantity
+                              const type = row["TYPE"];
+                              const quantity = row["QUANTITY"];
+                              if (type && quantity) {
+                                const price = TYPE_PRICING[type];
+                                if (price) {
+                                  const qty = parseFloat(quantity);
+                                  return (qty * price).toFixed(2);
+                                }
+                              }
+                              return '-';
+                            })()}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex gap-1.5">
                               <button
                                 onClick={() => handleEdit(idx)}
-                                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                                className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => handleDelete(idx)}
-                                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
                               >
                                 Delete
                               </button>
@@ -708,7 +988,7 @@ function Cykris() {
                 </tbody>
               </table>
               {jsonData.length === 0 && (
-                <div className="text-center text-gray-400 py-10">No data to display. Add a DR to get started.</div>
+                <div className="text-center text-gray-400 py-6 text-xs">No data to display. Add a DR to get started.</div>
               )}
             </div>
           </div>
@@ -718,11 +998,198 @@ function Cykris() {
           <div className="flex flex-col items-center justify-center h-96">
             <div className="text-center">
               <p className="text-xl font-semibold text-gray-700 mb-2">No DRs Added Yet</p>
-              <p className="text-gray-500">Use the form above to add your first DR</p>
+              <p className="text-gray-500">Click "Add DR" button to add your first DR</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal for Add/Edit DR */}
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 bg-opacity-50 transition-all">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden border border-gray-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b px-4 py-2.5 bg-gray-50">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingIndex !== null ? 'Edit DR' : 'Add New DR'}
+              </h2>
+              <button 
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold leading-none" 
+                onClick={() => {
+                  clearForm();
+                  setFormOpen(false);
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-4 max-h-[70vh] overflow-y-auto">
+              {/* DR# and Destination - Single fields */}
+              <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">DR # *</label>
+                  <input
+                    type="text"
+                    value={formData.drNo}
+                    onChange={(e) => handleFormChange('drNo', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="e.g., 12345"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">Destination *</label>
+                  <input
+                    type="text"
+                    list="destination-options"
+                    value={formData.destination}
+                    onChange={(e) => handleFormChange('destination', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Select or type destination"
+                    required
+                  />
+                  <datalist id="destination-options">
+                    {DESTINATION_OPTIONS.map((dest) => (
+                      <option key={dest} value={dest} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              {/* Rows Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Items (Rows)</label>
+                  <button
+                    type="button"
+                    onClick={addFormRow}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                  >
+                    + Add Row
+                  </button>
+                </div>
+
+                {formData.rows.map((row, rowIndex) => (
+                  <div key={rowIndex} className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-600">Row {rowIndex + 1}</span>
+                      {formData.rows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeFormRow(rowIndex)}
+                          className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-0.5">Quantity *</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row.quantity}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              handleFormRowChange(rowIndex, 'quantity', value);
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Enter quantity"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-0.5">Unit</label>
+                        <select
+                          value={row.unit}
+                          onChange={(e) => handleFormRowChange(rowIndex, 'unit', e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">Select Unit</option>
+                          <option value="PCS">PCS</option>
+                          <option value="BOXES">BOXES</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-0.5">Type</label>
+                        <select
+                          value={row.type}
+                          onChange={(e) => handleFormRowChange(rowIndex, 'type', e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">Select Type</option>
+                          {Object.keys(TYPE_PRICING).map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-0.5">Boxes *</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row.boxes}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              handleFormRowChange(rowIndex, 'boxes', value);
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Enter number of boxes"
+                          required
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
+                        <input
+                          type="text"
+                          list={`description-options-${rowIndex}`}
+                          value={row.description}
+                          onChange={(e) => handleFormRowChange(rowIndex, 'description', e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Select or type description"
+                        />
+                        <datalist id={`description-options-${rowIndex}`}>
+                          {DESCRIPTION_OPTIONS.map((desc) => (
+                            <option key={desc} value={desc} />
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex gap-2 px-4 py-2.5 border-t bg-gray-50">
+              <button
+                onClick={handleSubmitDR}
+                className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 font-medium shadow-sm transition"
+              >
+                {editingIndex !== null ? 'Update DR' : 'Add DR'}
+              </button>
+              <button
+                onClick={() => {
+                  clearForm();
+                  setFormOpen(false);
+                }}
+                className="px-4 py-1.5 text-sm bg-gray-400 text-white rounded hover:bg-gray-500 font-medium shadow-sm transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal for Review - keeping the existing modal code */}
       {modalOpen && jsonData && jsonData.length > 0 && (
@@ -824,7 +1291,12 @@ function Cykris() {
                           >
                             <div className="flex-1">
                               {(() => {
-                                const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
+                                const refs = group.rows.map(r => {
+                                  const refNo = r['REF NO.'] || '';
+                                  // Extract just "DR # 333" without the group number
+                                  const match = refNo.match(/DR\s*#\s*([^\s\(]+)/);
+                                  return match ? `DR # ${match[1]}` : refNo.replace(/\(([^)]*)\)/g, '').trim();
+                                });
                                 return (
                                   <div className="space-y-1">
                                     {refs.map((ref, idx) => (
@@ -859,83 +1331,77 @@ function Cykris() {
                   const sumDeclared = group.rows.reduce((sum, row) => sum + Number(row['DECLARED AMOUNT'].replace(/,/g, '') || 0), 0);
                   // Use first row for other fields
                   const firstRow = group.rows[0];
+                  console.log(firstRow);
                   return (
                     <>
-                      <div className='flex flex-row gap-6'>
-                        <div className="flex flex-wrap gap-4">
-                          <div className="relative border border-gray-300 rounded p-4 flex flex-col gap-2 bg-gray-50 max-w-xs w-full shadow">
-                            <div className="mb-2 font-semibold text-gray-700">Houseway Bill No</div>
-                            <div className='flex flex-col h-full justify-between'>
-                              <input
-                                  type="text"
-                                  className="border border-blue-200 rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
-                                  placeholder="000-0000"
-                                  value={getHousewayBill(selectedGroupKey)}
-                                  onChange={e => handleHousewayBillChange(selectedGroupKey, e.target.value)}
-                                  maxLength={8}
-                                  style={{ width: '100%' }}
-                                  disabled={waybillDisabled}
-                                />
-                                {(getHousewayBill(selectedGroupKey) && !/^\d{3}-\d{4}$/.test(getHousewayBill(selectedGroupKey))) && (
-                                  <div className="text-red-500 text-xs">Format must be 000-0000</div>
-                                )}
-                                {reviewedRefs[selectedGroupKey] ? (
-                                  <button
-                                    className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-semibold shadow-sm transition"
-                                    onClick={() => handleConfirmUnreview(selectedGroupKey)}
-                                  >
-                                    Mark as Unreviewed
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold shadow-sm transition"
-                                    onClick={() => handleConfirmReview(selectedGroupKey)}
-                                    disabled={!/^\d{3}-\d{4}$/.test(getHousewayBill(selectedGroupKey) || '')}
-                                  >
-                                    Mark as Reviewed
-                                  </button>
-                                )}
-                            </div>
-                          </div>
+                      <div className='flex flex-col gap-3'>
+                        {/* Review Status Button */}
+                        <div className="flex items-center justify-end gap-2">
+                          {reviewedRefs[selectedGroupKey] ? (
+                            <button
+                              className="px-4 py-1.5 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm shadow-sm transition"
+                              onClick={() => handleConfirmUnreview(selectedGroupKey)}
+                            >
+                              Mark as Unreviewed
+                            </button>
+                          ) : (
+                            <button
+                              className="px-4 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm shadow-sm transition"
+                              onClick={() => handleConfirmReview(selectedGroupKey)}
+                            >
+                              Mark as Reviewed
+                            </button>
+                          )}
+                          <button
+                            className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm shadow-sm transition"
+                            onClick={() => window.location.href = '/cykris-billing'}
+                          >
+                            Billing
+                          </button>
                         </div>
                         
-                        {/* Print options box */}
-                        <div className="border border-gray-300 rounded p-4 flex flex-col gap-2 bg-gray-50 max-w-xs w-full shadow">
-                          <div className="mb-2 font-semibold text-gray-700">Print Options</div>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={printChecks.ttc}
-                              onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
-                            />
-                            TTC Copy
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={printChecks.customer}
-                              onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
-                            />
-                            Customer's Copy
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={printChecks.carrier}
-                              onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
-                            />
-                            Carrier Copy
-                          </label>
-                          <div className="flex gap-3 mt-2">
+                        {/* Print Options Box */}
+                        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 shadow-sm">
+                          <div className="mb-2 text-xs font-semibold text-gray-700 uppercase tracking-wide">Print Options</div>
+                          <div className="space-y-1.5 mb-3">
+                            <label className="flex items-center gap-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={printChecks.ttc}
+                                onChange={e => setPrintChecks(c => ({ ...c, ttc: e.target.checked }))}
+                                className="w-3.5 h-3.5"
+                              />
+                              Cykris Copy
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={printChecks.customer}
+                                onChange={e => setPrintChecks(c => ({ ...c, customer: e.target.checked }))}
+                                className="w-3.5 h-3.5"
+                              />
+                              Customer's Copy
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={printChecks.carrier}
+                                onChange={e => setPrintChecks(c => ({ ...c, carrier: e.target.checked }))}
+                                className="w-3.5 h-3.5"
+                              />
+                              Carrier Copy
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
                             <button
-                              className={`px-4 py-2 rounded font-semibold ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition ${printChecks.ttc || printChecks.customer || printChecks.carrier ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                               onClick={() => handlePrintSelected(selectedGroupKey)}
                               disabled={!(printChecks.ttc || printChecks.customer || printChecks.carrier)}
                             >
                               Print
                             </button>
                             <button
-                              className="px-4 py-2 rounded font-semibold bg-purple-600 text-white hover:bg-purple-700"
+                              className="flex-1 px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 transition"
                               onClick={() => handlePrintAllBox(selectedGroupKey)}
                             >
                               Print All
@@ -953,112 +1419,92 @@ function Cykris() {
                               <div className='absolute top-0 left-0'>
                                 <img src='assets/waybill-logo.PNG' alt='Waybill Logo' className='mt-[1px] ml-[1px] h-[68px] mb-[10px] w-auto' />
                               </div>
-                              <div className='flex mt-[75px]'>
-                                <div className='ml-1 w-[84px]'>Email address:</div>
-                                <div className='ml-[36px] text-red-500 w-[360px]'>{EMAILS[0]}</div>
-                              </div>
-                              <div className='flex'>
-                                <div className='ml-1'>Contact Number:</div>
-                                <div className='ml-[23px] text-red-500'>{CONTACT_NUMBERS}</div>
-                              </div>
-                            </div>
-                            <div className='viewer-header-right ml-[40px] mt-[20px]'>
-                              <div className='flex font-serif items-center'>
-                                <div>
-                                  {HOUSEWAY_BILL_NO}
-                                </div>
-                                <div className='pt-1 pb-1 text-[16px] font-bold font-[Times New Roman] bg-[#fbe4d5] w-[160px] flex justify-center items-center'>{getHousewayBill(selectedGroupKey)}</div></div>
-                              <div className="mt-[23px]">
-                                <div className='underline text-red-500'>{EMAILS[1]}</div>
-                                <div className='underline text-red-500'>{EMAILS[2]}</div>
-                                <div className='underline text-red-500'>{EMAILS[3]}</div>
-                              </div>
                             </div>
                           </div>
-                          <div className='viewer-top-body flex mt-[15px]'>
-                            <div className='viewer-top-body-left w-[445px]'>
-                              <div className='flex'>
-                                <div className='ml-1 w-[120px]'>SHIPPER NAME:</div>
-                                <div className='font-normal h-[40px] flex items-center justify-center w-[215px] bg-[#fbe4d5]'>TRIMOTORS TECHNOLOGY CORP.</div>
+                          <div className='mt-[70px]'>
+                            <div className='border-b font-bold text-[20px] mt-[90px] pl-[10px] pb-[20px]'>DELIVERY RECEIPT</div>
+                              <div className='border-b font-bold text-[16px] mt-[15px] pb-[15px] pl-[10px] flex justify-between items-center'>
+                                <div>DESTINATION: {firstRow['ADDRESS']}</div>
+                                <div className='pr-[10px]'>DR# {(() => {
+                                  const refNo = firstRow['REF NO.'] || '';
+                                  const match = refNo.match(/DR\s*#\s*([^\s\(]+)/);
+                                  return match ? match[1] : refNo.replace(/[()]/g, '');
+                                })()}</div>
                               </div>
-                              <div className='flex mt-5'>
-                                <div className='ml-1 w-[120px]'>DECLARED VALUE:</div>
-                                <div className='pl-2 bg-[#fbe4d5]'>P<span className='font-normal ml-[90px]'>
-                                  {sumDeclared.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span></div>
-                              </div>
-                            </div>
-                            <div className='viewer-top-body-right'>
-                              <div className='flex'>
-                                <div className='w-[140px] pl-2'>CONSIGNEE NAME:</div>
-                                <div className='font-normal pb-[20px] w-[350px] bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['NAME OF DEALER']}</div>
-                              </div>
-                              <div className='flex'>
-                                <div className=' pl-2'>CONSIGNEE CONTACT INFORMATION</div>
-                                <div></div>
-                              </div>
-                              <div className='flex'>
-                                <div className='w-[140px] flex items-center pl-2'>CONSIGNEE ADDRESS:</div>
-                                <div className='font-normal pt-[10px] pb-[10px] flex items-center justify-center flex-1 bg-[#fbe4d5] pl-2 mr-[2px]'>{firstRow['ADDRESS']}</div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className='viewer-bot-body flex justify-between'>
-                            <div className='viewer-bot-body-left flex-1'>
-                              <div className='items-center justify-center flex border border-l-0 pt-[10px] pb-[10px]'>DOCUMENT NUMBER</div>
-                              <div style={{backgroundColor: '#fbe4d5'}} className='h-[70px] flex items-center border border-l-0 border-t-0 pl-1 font-medium'>
+                            <table className="w-full border-collapse border-0" style={{ minHeight: '400px' }}>
+                              <thead>
+                                <tr className="bg-gray-100">
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: QUANTITY_COLUMN_WIDTH }}>Quantity</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: UNIT_COLUMN_WIDTH }}>Unit</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: DESCRIPTION_COLUMN_WIDTH }}>Description</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: BOXES_COLUMN_WIDTH }}>No. Of Boxes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
                                 {(() => {
-                                  const refs = group.rows.map(r => r['REF NO.']?.replace(/\(([^)]*)\)/g, '( $1 )'));
-                                  const lines = [];
-                                  for (let i = 0; i < refs.length; i += 3) {
-                                    lines.push(refs.slice(i, i + 3));
-                                  }
+                                  const maxRows = 7;
+                                  const actualRows = group.rows;
+                                  const rowsToShow = Math.min(actualRows.length, maxRows);
+                                  const emptyRowsNeeded = maxRows - rowsToShow;
+                                  
                                   return (
-                                    <div className='flex'>
-                                      {lines.map((line, idx) => (
-                                        <div className='flex flex-col' key={idx} style={idx > 0 ? { marginLeft: 24 } : {}}>
-                                          {line.map((ref, j) => (
-                                            <span key={j} style={{ display: 'inline-block', marginRight: 8 }}>{ref}</span>
-                                          ))}
-                                        </div>
+                                    <>
+                                      {actualRows.slice(0, rowsToShow).map((row, rowIndex) => (
+                                        <tr key={rowIndex} style={{ height: '40px' }}>
+                                          <td className="text-center py-2 border-l border-r border-black" style={{ width: QUANTITY_COLUMN_WIDTH }}>{row['QUANTITY']}</td>
+                                          <td className="text-center py-2 border-l border-r border-black" style={{ width: UNIT_COLUMN_WIDTH }}>{row['UNIT']}</td>
+                                          <td className="text-center py-2 border-l border-r border-black" style={{ width: DESCRIPTION_COLUMN_WIDTH }}>{row['DESCRIPTION']}</td>
+                                          <td className="text-center py-2 border-l border-r border-black" style={{ width: BOXES_COLUMN_WIDTH }}>{row['No. Of Boxes']}</td>
+                                        </tr>
                                       ))}
-                                    </div>
+                                      {Array.from({ length: emptyRowsNeeded }).map((_, emptyIndex) => (
+                                        <tr key={`empty-${emptyIndex}`} style={{ height: '40px' }}>
+                                          <td className="text-center py-[10px] border-l border-r border-black" style={{ width: QUANTITY_COLUMN_WIDTH }}>&nbsp;</td>
+                                          <td className="text-center py-[10px] border-l border-r border-black" style={{ width: UNIT_COLUMN_WIDTH }}>&nbsp;</td>
+                                          <td className="text-center py-[10px] border-l border-r border-black" style={{ width: DESCRIPTION_COLUMN_WIDTH }}>&nbsp;</td>
+                                          <td className="text-center py-[10px] border-l border-r border-black" style={{ width: BOXES_COLUMN_WIDTH }}>&nbsp;</td>
+                                        </tr>
+                                      ))}
+                                    </>
                                   );
                                 })()}
-                              </div>
-                              <div className='ml-1 flex h-[40px] items-center text-[14px] font-serif border-r-1'>REMARKS:</div>
-                              <div className='ml-1 flex h-[54px] border-r-1'>WARRANT THAT ALL DETAILS GIVEN ARE TRUE AND CORRECT</div>
-                              <div className='border-r-1 border-t-1 pb-[25px] pl-[30px]'>SHIPPER'S PRINTED NAME AND SIGNATURE/DATE</div>
-                              <div className='border-r-1 pb-5 border-b-1'>RECEIVED BY:</div>
-                              <div className='border-r-1 ml-8'>CONSIGNEE PRINTED NAME AND SIGNATURE/DATE</div>
-                            </div>
-                            <div className='viewer-bot-body-right flex-1'>
-                              <div className='items-center justify-center flex border pt-[10px] pb-[10px] border-l-0 border-r-0'>NUMBER AND TYPE OF PACKAGE</div>
-                              <div className='h-[70px] font-medium flex items-center border border-t-0 border-l-0 border-r-0 pl-1 bg-[#fbe4d5] mr-[2px]'>
-                                {(() => {
-                                  const boxVal = group.rows.find(r => r['No. Of Boxes'] && r['No. Of Boxes'].trim() !== '')?.['No. Of Boxes'] || '';
-                                  const bundleVal = group.rows.find(r => r['NO. OF BUNDLES'] && r['NO. OF BUNDLES'].trim() !== '')?.['NO. OF BUNDLES'] || '';
-                                  const numBox = parseInt(boxVal, 10);
-                                  const numBundle = parseInt(bundleVal, 10);
-                                  let result = '';
-                                  if (boxVal) {
-                                    result += `${numBox} ${numBox === 1 ? 'BOX' : 'BOXES'}`;
-                                  }
-                                  if (bundleVal) {
-                                    if (result) result += ' & ';
-                                    result += `${numBundle} ${numBundle === 1 ? 'BUNDLE' : 'BUNDLES'}`;
-                                  }
-                                  return result;
-                                })()}
-                              </div>
-                              <div className='pt-[40px] pl-1'>ERVY LOGISTICS</div>
-                              <div className='pb-[18px] pl-1'>AUTHORIZED REPRESENTATIVE</div>
-                              <div className='pl-8 border-t-1'>PRINTED NAME AND SIGNATURE/DATE</div>
-                              <div className='flex pl-1'>TRUCK PLATE NO. <div className='ml-10 bg-[#fbe4d5] w-[200px] h-[25px]'></div></div>
-                            </div>
-                          </div>
-                          <div className='text-center mt-2 border-[10px] text-[10px]' style={{ borderColor: '#fbe4d5', lineHeight: '13px'}}>
-                            This is a non-negotiable consignment note subject to the terms and conditions set forth on the reverse of shipper's copy. In tendering this shipment, shipper agrees that ERVY Logistics shall and be liable for special, incidental or consequential damages arising from the carriage hereof. ERVY Logistics disclaims all warranties, express or implied, with respect to this shipment. Insurance coverage is available upon the shipper's request and payment thereof, ERVY LOGISTICS RESERVES THE RIGHT TO OPEN AND INSPECT THE SHIPMENT OFFERED FOR CARRIAGE
+                                <tr style={{ height: '120px' }} className='text-[14px]'>
+                                  <td colSpan={2} className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
+                                    <div className="flex flex-col justify-between" style={{ height: '100%' }}>
+                                      <div>RECEIVE THE ABOVE GOODS IN GOOD CONDITION</div>
+                                      <div className='text-[16px]'>CONSIGNEE'S PRINTED NAME & SIGNATURE</div>
+                                    </div>
+                                  </td>
+                                  <td className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
+                                    <div className="flex flex-col justify-between" style={{ height: '100%' }}>
+                                      <div>
+                                        <div>DELIVERED BY: ERVY LOGISTICS</div>
+                                        <div>AUTHORIZED REPRESENTATIVE</div>
+                                      </div>
+                                      <div className='text-[16px]'>PRINTED NAME AND SIGNATURE</div>
+                                    </div>
+                                  </td>
+                                  <td className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
+                                    <div className="flex flex-col justify-between" style={{ height: '100%' }}>
+                                      <div>
+                                        <div>Date: {(() => {
+                                          const date = new Date();
+                                          const day = String(date.getDate()).padStart(2, '0');
+                                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                                          const year = date.getFullYear();
+                                          return `${day}-${month}-${year}`;
+                                        })()}</div>
+                                      </div>
+                                      <div>
+                                        <div>TIME</div>
+                                        <div>AM</div>
+                                        <div>PM</div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       </div>
@@ -1086,7 +1532,21 @@ function Cykris() {
                                     <div className="p-4">
                                       <table className="w-full border-separate border-spacing-y-1">
                                         <tbody>
-                                          {Object.entries(row).map(([key, value], idx, arr) => (
+                                          {Object.entries(row)
+                                            .filter(([key]) => {
+                                              // Remove these fields from details table
+                                              const fieldsToRemove = [
+                                                'DR/SI DATE',
+                                                'NAME OF DEALER',
+                                                'Contact Person',
+                                                'Contact No.',
+                                                'NO. OF BUNDLES',
+                                                'DISPATCHED BY:',
+                                                'waybill_no'
+                                              ];
+                                              return !fieldsToRemove.includes(key);
+                                            })
+                                            .map(([key, value], idx, arr) => (
                                             <tr
                                               key={key}
                                               className={

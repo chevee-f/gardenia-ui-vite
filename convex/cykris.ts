@@ -17,10 +17,18 @@ export const saveCykris = mutation({
       no_of_boxes: v.optional(v.union(v.float64(), v.null())),
       no_of_bundles: v.optional(v.union(v.float64(), v.null())),
       dispatched_by: v.optional(v.union(v.string(), v.null())),
+      type: v.optional(v.union(v.string(), v.null())),
+      description: v.optional(v.union(v.string(), v.null())),
+      destination: v.optional(v.union(v.string(), v.null())),
+      quantity: v.optional(v.union(v.string(), v.null())),
+      unit: v.optional(v.union(v.string(), v.null())),
+      reviewed: v.optional(v.boolean()),
     }))
   },
   handler: async (ctx, { data }) => {
-    for (const args of data) {
+    console.log('saveCykris received', data.length, 'rows');
+    for (let i = 0; i < data.length; i++) {
+      const args = data[i];
       const doc = {
         drsi_date: null,
         name_of_dealer: null,
@@ -31,10 +39,27 @@ export const saveCykris = mutation({
         no_of_boxes: null,
         no_of_bundles: null,
         dispatched_by: null,
+        type: null,
+        description: null,
+        destination: null,
+        quantity: null,
+        unit: null,
+        reviewed: false,
         ...args,
       };
 
-      const existing = await ctx.db
+      console.log(`Processing row ${i + 1}/${data.length}:`, {
+        ref_no: doc.ref_no,
+        group_ref_no: doc.group_ref_no,
+        description: doc.description,
+        quantity: doc.quantity,
+        unit: doc.unit
+      });
+
+      // Check for existing record - include description, quantity, unit to make rows unique
+      // This allows multiple rows per DR# with different items
+      // Note: We need to handle null values carefully in the query
+      let query = ctx.db
         .query("cykris_dr")
         .filter(q =>
           q.and(
@@ -42,14 +67,24 @@ export const saveCykris = mutation({
             q.eq(q.field("waybill_no"), doc.waybill_no),
             q.eq(q.field("group_ref_no"), doc.group_ref_no)
           )
-        )
-        .first();
+        );
+
+      // Add description, quantity, unit filters - handle null values
+      const allRecords = await query.collect();
+      const existing = allRecords.find(record => {
+        const descMatch = (record.description ?? null) === (doc.description ?? null);
+        const qtyMatch = (record.quantity ?? null) === (doc.quantity ?? null);
+        const unitMatch = (record.unit ?? null) === (doc.unit ?? null);
+        return descMatch && qtyMatch && unitMatch;
+      });
 
       if (existing) {
+        console.log(`Row ${i + 1}: Found existing record with _id:`, existing._id);
         // Compare fields to check if patch needed
         const keysToCompare = [
           'drsi_date', 'name_of_dealer', 'contact_person', 'contact_no', 'address',
           'declared_amount', 'no_of_boxes', 'no_of_bundles', 'dispatched_by',
+          'type', 'description', 'destination', 'quantity', 'unit', 'reviewed',
           'ref_no', 'waybill_no', 'group_ref_no'
         ];
 
@@ -63,12 +98,17 @@ export const saveCykris = mutation({
         }
 
         if (isDifferent) {
+          console.log(`Row ${i + 1}: Patching existing record`);
           await ctx.db.patch(existing._id, doc);
-        } // else skip patching, no changes
+        } else {
+          console.log(`Row ${i + 1}: No changes, skipping`);
+        }
       } else {
+        console.log(`Row ${i + 1}: No existing record found, inserting new record`);
         await ctx.db.insert("cykris_dr", doc);
       }
     }
+    console.log('saveCykris completed');
     return { success: true };
   }
 });
