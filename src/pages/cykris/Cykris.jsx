@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye } from 'react-icons/hi';
+import { HiOutlineXCircle } from 'react-icons/hi';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
@@ -105,7 +106,8 @@ function Cykris() {
   const [waybillDisabled, setWaybillDisabled] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
-  const [isAddDRloading, setIsAddDRloading] = useState(false)
+  const [isAddDRloading, setIsAddDRloading] = useState(false);
+  const [addDRError, setAddDRError] = useState(null);
   const [hasLocalCykrisData, setHasLocalCykrisData] = useState(false);
 
   // Form state
@@ -587,6 +589,7 @@ function Cykris() {
       ]
     });
     setEditingIndex(null);
+    setAddDRError(null);
   };
 
   // Add a new row to the form
@@ -628,16 +631,21 @@ function Cykris() {
   // Add or update DR
   const handleSubmitDR = async () => {
     setIsAddDRloading(true);
+    setAddDRError(null);
+    
     if (!formData.drNo.trim()) {
-      alert('DR # is required');
+      setAddDRError('DR # is required');
+      setIsAddDRloading(false);
       return;
     }
     if (!formData.destination.trim()) {
-      alert('Destination is required');
+      setAddDRError('Destination is required');
+      setIsAddDRloading(false);
       return;
     }
     if (formData.rows.length === 0) {
-      alert('At least one row is required');
+      setAddDRError('At least one row is required');
+      setIsAddDRloading(false);
       return;
     }
 
@@ -645,19 +653,23 @@ function Cykris() {
     for (let i = 0; i < formData.rows.length; i++) {
       const row = formData.rows[i];
       if (!row.quantity.trim()) {
-        alert(`Row ${i + 1}: Quantity is required`);
+        setAddDRError(`Row ${i + 1}: Quantity is required`);
+        setIsAddDRloading(false);
         return;
       }
       if (!/^\d+$/.test(row.quantity)) {
-        alert(`Row ${i + 1}: Quantity must be a number`);
+        setAddDRError(`Row ${i + 1}: Quantity must be a number`);
+        setIsAddDRloading(false);
         return;
       }
       if (!row.boxes.trim()) {
-        alert(`Row ${i + 1}: Boxes is required`);
+        setAddDRError(`Row ${i + 1}: Boxes is required`);
+        setIsAddDRloading(false);
         return;
       }
       if (!/^\d+$/.test(row.boxes)) {
-        alert(`Row ${i + 1}: Boxes must be a number`);
+        setAddDRError(`Row ${i + 1}: Boxes must be a number`);
+        setIsAddDRloading(false);
         return;
       }
     }
@@ -793,9 +805,12 @@ function Cykris() {
 
       clearForm();
       setFormOpen(false);
+      setAddDRError(null);
     } catch (err) {
       console.error('Failed to save DR:', err);
-      alert('Failed to save DR. Please try again.');
+      setAddDRError(err.message || 'Failed to save DR. Please try again.');
+    } finally {
+      setIsAddDRloading(false);
     }
   };
 
@@ -1054,11 +1069,15 @@ function Cykris() {
                 {editingIndex !== null ? 'Edit DR' : 'Add New DR'}
               </h2>
               <button 
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold leading-none" 
+                className={`text-gray-500 text-2xl font-bold leading-none ${isAddDRloading ? 'cursor-not-allowed opacity-50' : 'hover:text-gray-700'}`}
                 onClick={() => {
-                  clearForm();
-                  setFormOpen(false);
+                  if (!isAddDRloading) {
+                    clearForm();
+                    setFormOpen(false);
+                    setAddDRError(null);
+                  }
                 }}
+                disabled={isAddDRloading}
               >
                 &times;
               </button>
@@ -1066,6 +1085,21 @@ function Cykris() {
             
             {/* Modal Body */}
             <div className="p-4 max-h-[70vh] overflow-y-auto">
+              {/* Error Message */}
+              {addDRError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                  <HiOutlineXCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700 flex-1">{addDRError}</p>
+                  <button
+                    onClick={() => setAddDRError(null)}
+                    className="text-red-600 hover:text-red-800 text-lg font-bold leading-none"
+                    disabled={isAddDRloading}
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+              
               {/* DR# and Destination - Single fields */}
               <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b">
                 <div>
@@ -1074,7 +1108,8 @@ function Cykris() {
                     type="text"
                     value={formData.drNo}
                     onChange={(e) => handleFormChange('drNo', e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    disabled={isAddDRloading}
+                    className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                     placeholder="e.g., 12345"
                     required
                   />
@@ -1086,7 +1121,8 @@ function Cykris() {
                     list="destination-options"
                     value={formData.destination}
                     onChange={(e) => handleFormChange('destination', e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    disabled={isAddDRloading}
+                    className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                     placeholder="Select or type destination"
                     required
                   />
@@ -1105,21 +1141,23 @@ function Cykris() {
                   <button
                     type="button"
                     onClick={addFormRow}
-                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                    disabled={isAddDRloading}
+                    className={`px-3 py-1 text-xs bg-blue-600 text-white rounded font-medium ${isAddDRloading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                   >
                     + Add Row
                   </button>
                 </div>
 
                 {formData.rows.map((row, rowIndex) => (
-                  <div key={rowIndex} className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <div key={rowIndex} className={`border border-gray-300 rounded-lg p-3 ${isAddDRloading ? 'bg-gray-100' : 'bg-gray-50'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium text-gray-600">Row {rowIndex + 1}</span>
                       {formData.rows.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeFormRow(rowIndex)}
-                          className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                          disabled={isAddDRloading}
+                          className={`px-2 py-1 text-xs bg-red-500 text-white rounded font-medium ${isAddDRloading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600'}`}
                         >
                           Remove
                         </button>
@@ -1139,7 +1177,8 @@ function Cykris() {
                               handleFormRowChange(rowIndex, 'quantity', value);
                             }
                           }}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isAddDRloading}
+                          className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                           placeholder="Enter quantity"
                           required
                         />
@@ -1149,7 +1188,8 @@ function Cykris() {
                         <select
                           value={row.unit}
                           onChange={(e) => handleFormRowChange(rowIndex, 'unit', e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isAddDRloading}
+                          className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                         >
                           <option value="">Select Unit</option>
                           <option value="PCS">PCS</option>
@@ -1161,7 +1201,8 @@ function Cykris() {
                         <select
                           value={row.type}
                           onChange={(e) => handleFormRowChange(rowIndex, 'type', e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isAddDRloading}
+                          className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                         >
                           <option value="">Select Type</option>
                           {Object.keys(TYPE_PRICING).map((type) => (
@@ -1182,7 +1223,8 @@ function Cykris() {
                               handleFormRowChange(rowIndex, 'boxes', value);
                             }
                           }}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isAddDRloading}
+                          className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                           placeholder="Enter number of boxes"
                           required
                         />
@@ -1194,7 +1236,8 @@ function Cykris() {
                           list={`description-options-${rowIndex}`}
                           value={row.description}
                           onChange={(e) => handleFormRowChange(rowIndex, 'description', e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isAddDRloading}
+                          className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                           placeholder="Select or type description"
                         />
                         <datalist id={`description-options-${rowIndex}`}>
@@ -1211,27 +1254,38 @@ function Cykris() {
             
             {/* Modal Footer */}
             <div className="flex gap-2 px-4 py-2.5 border-t bg-gray-50">
-              {!isAddDRloading ? 
-                <button
-                  onClick={handleSubmitDR}
-                  className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 font-medium shadow-sm transition"
-                >
-                  {editingIndex !== null ? 'Update DR' : 'Add DR'}
-                </button>
-                : 
-                <button
-                  className="px-4 py-1.5 text-sm bg-green-200 text-white rounded font-medium transition"
-                >
-                  {editingIndex !== null ? 'Update DR' : 'Add DR'}
-                </button>
-              }
+              <button
+                onClick={handleSubmitDR}
+                disabled={isAddDRloading}
+                className={`px-4 py-1.5 text-sm bg-green-600 text-white rounded font-medium shadow-sm transition flex items-center gap-2 ${
+                  isAddDRloading 
+                    ? 'opacity-60 cursor-not-allowed' 
+                    : 'hover:bg-green-700'
+                }`}
+              >
+                {isAddDRloading && (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {isAddDRloading ? 'Saving...' : (editingIndex !== null ? 'Update DR' : 'Add DR')}
+              </button>
               
               <button
                 onClick={() => {
-                  clearForm();
-                  setFormOpen(false);
+                  if (!isAddDRloading) {
+                    clearForm();
+                    setFormOpen(false);
+                    setAddDRError(null);
+                  }
                 }}
-                className="px-4 py-1.5 text-sm bg-gray-400 text-white rounded hover:bg-gray-500 font-medium shadow-sm transition"
+                disabled={isAddDRloading}
+                className={`px-4 py-1.5 text-sm bg-gray-400 text-white rounded font-medium shadow-sm transition ${
+                  isAddDRloading 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-gray-500'
+                }`}
               >
                 Cancel
               </button>
