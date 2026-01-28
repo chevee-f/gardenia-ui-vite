@@ -31,9 +31,13 @@ const TYPE_PRICING = {
 
 // Description options (can be extended, but users can also type custom values)
 const DESCRIPTION_OPTIONS = [
-  "Standard Description 1",
-  "Standard Description 2",
-  "Standard Description 3"
+  "FULL FACE HELMET",
+  "HALF FACE HELMET",
+  "BAJAJ GENIUNE OIL",
+  "BAJAJ GENIUNE PARTS",
+  "HELMET M300",
+  "FULL FACE CUSTOMIZED",
+  "PROMO HELMETS",
 ];
 
 // Table column widths
@@ -101,6 +105,8 @@ function Cykris() {
   const [waybillDisabled, setWaybillDisabled] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [isAddDRloading, setIsAddDRloading] = useState(false)
+  const [hasLocalCykrisData, setHasLocalCykrisData] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -123,12 +129,45 @@ function Cykris() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setJsonData(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setJsonData(parsed);
+          setHasLocalCykrisData(true);
+        }
       } catch (err) {
         console.error('Error loading cykris data:', err);
       }
     }
   }, []);
+
+  // Shared DRs (database) - visible to other users
+  const allCykrisDr = useQuery(api.cykris.getAllCykris) || [];
+
+  // If the user has no local saved list, fall back to database so everyone sees shared DRs
+  useEffect(() => {
+    if (hasLocalCykrisData) return;
+    if (!allCykrisDr || allCykrisDr.length === 0) return;
+
+    const mapped = allCykrisDr.map((dr) => ({
+      "REF NO.": dr.ref_no || "",
+      "DR/SI DATE": dr.drsi_date ?? "",
+      "NAME OF DEALER": dr.name_of_dealer ?? "",
+      "Contact Person": dr.contact_person ?? "",
+      "Contact No.": dr.contact_no ?? "",
+      "ADDRESS": dr.address ?? dr.destination ?? "",
+      "DECLARED AMOUNT": dr.declared_amount ?? "",
+      "No. Of Boxes": dr.no_of_boxes ?? "",
+      "NO. OF BUNDLES": dr.no_of_bundles ?? "",
+      "DISPATCHED BY:": dr.dispatched_by ?? "",
+      "QUANTITY": dr.quantity ?? "",
+      "UNIT": dr.unit ?? "",
+      "TYPE": dr.type ?? "",
+      "DESCRIPTION": dr.description ?? "",
+      "DESTINATION": dr.destination ?? dr.address ?? "",
+      "waybill_no": dr.waybill_no ?? "",
+    }));
+
+    setJsonData(mapped);
+  }, [allCykrisDr, hasLocalCykrisData]);
 
   // Save to localStorage whenever jsonData changes
   useEffect(() => {
@@ -588,6 +627,7 @@ function Cykris() {
 
   // Add or update DR
   const handleSubmitDR = async () => {
+    setIsAddDRloading(true);
     if (!formData.drNo.trim()) {
       alert('DR # is required');
       return;
@@ -1171,12 +1211,21 @@ function Cykris() {
             
             {/* Modal Footer */}
             <div className="flex gap-2 px-4 py-2.5 border-t bg-gray-50">
-              <button
-                onClick={handleSubmitDR}
-                className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 font-medium shadow-sm transition"
-              >
-                {editingIndex !== null ? 'Update DR' : 'Add DR'}
-              </button>
+              {!isAddDRloading ? 
+                <button
+                  onClick={handleSubmitDR}
+                  className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 font-medium shadow-sm transition"
+                >
+                  {editingIndex !== null ? 'Update DR' : 'Add DR'}
+                </button>
+                : 
+                <button
+                  className="px-4 py-1.5 text-sm bg-green-200 text-white rounded font-medium transition"
+                >
+                  {editingIndex !== null ? 'Update DR' : 'Add DR'}
+                </button>
+              }
+              
               <button
                 onClick={() => {
                   clearForm();
@@ -1431,13 +1480,13 @@ function Cykris() {
                                   return match ? match[1] : refNo.replace(/[()]/g, '');
                                 })()}</div>
                               </div>
-                            <table className="w-full border-collapse border-0" style={{ minHeight: '400px' }}>
+                            <table className="w-full border-collapse border-0" style={{ minHeight: '400px', marginLeft: "-1px", width: "calc(100% + 2px)" }}>
                               <thead>
                                 <tr className="bg-gray-100">
-                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: QUANTITY_COLUMN_WIDTH }}>Quantity</th>
-                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: UNIT_COLUMN_WIDTH }}>Unit</th>
-                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: DESCRIPTION_COLUMN_WIDTH }}>Description</th>
-                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ width: BOXES_COLUMN_WIDTH }}>No. Of Boxes</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ borderTop: 0, width: QUANTITY_COLUMN_WIDTH }}>Quantity</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ borderTop: 0, width: UNIT_COLUMN_WIDTH }}>Unit</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ borderTop: 0, width: DESCRIPTION_COLUMN_WIDTH }}>Description</th>
+                                  <th className="border border-black px-4 py-2 text-center font-semibold" style={{ borderTop: 0, width: BOXES_COLUMN_WIDTH }}>No. Of Boxes</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1472,7 +1521,7 @@ function Cykris() {
                                   <td colSpan={2} className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
                                     <div className="flex flex-col justify-between" style={{ height: '100%' }}>
                                       <div>RECEIVE THE ABOVE GOODS IN GOOD CONDITION</div>
-                                      <div className='text-[16px]'>CONSIGNEE'S PRINTED NAME & SIGNATURE</div>
+                                      <div className='text-[14px]'>CONSIGNEE'S PRINTED NAME & SIGNATURE</div>
                                     </div>
                                   </td>
                                   <td className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
@@ -1481,7 +1530,7 @@ function Cykris() {
                                         <div>DELIVERED BY: ERVY LOGISTICS</div>
                                         <div>AUTHORIZED REPRESENTATIVE</div>
                                       </div>
-                                      <div className='text-[16px]'>PRINTED NAME AND SIGNATURE</div>
+                                      <div className='text-[14px]'>PRINTED NAME AND SIGNATURE</div>
                                     </div>
                                   </td>
                                   <td className="border border-black" style={{ height: '120px', padding: '8px', verticalAlign: 'top' }}>
