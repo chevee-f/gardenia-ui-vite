@@ -10,6 +10,7 @@ import SpareParts from './pages/spare-parts/SpareParts';
 import Billing from './pages/spare-parts/Billing';
 import Cykris from './pages/cykris/Cykris';
 import CykrisBilling from './pages/cykris/CykrisBilling';
+import CykrisBillingV2 from './pages/cykris/CykrisBillingV2';
 
 function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -29,7 +30,7 @@ function App() {
               <Route path='/spare-parts' element={<SpareParts />} />
               <Route path='/billing' element={<Billing />} />
               <Route path='/cykris' element={<Cykris />} />
-              <Route path='/cykris-billing' element={<CykrisBilling />} />
+              <Route path='/cykris-billing' element={<CykrisBillingV2 />} />
               {/* other routes */}
             </Routes>
           </main>
