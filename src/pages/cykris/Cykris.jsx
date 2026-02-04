@@ -3,6 +3,7 @@ import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye } from 'react-icons/hi'
 import { HiOutlineXCircle } from 'react-icons/hi';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useNavigate } from 'react-router-dom';
 
 // === CONSTANTS ===
 const COPY_LABELS = {
@@ -92,6 +93,7 @@ const DESTINATION_OPTIONS = [
 ];
 
 function Cykris() {
+  const navigate = useNavigate();
   const [jsonData, setJsonData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -904,7 +906,7 @@ function Cykris() {
           <h1 className="text-2xl font-bold text-gray-900">Cykris</h1>
           <button
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
-            onClick={() => window.location.href = '/cykris-billing'}
+            onClick={() => navigate('/cykris-billing')}
           >
             Billing
           </button>
@@ -1458,7 +1460,7 @@ function Cykris() {
                           )}
                           <button
                             className="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm shadow-sm transition"
-                            onClick={() => window.location.href = '/cykris-billing'}
+                            onClick={() => navigate('/cykris-billing')}
                           >
                             Billing
                           </button>
