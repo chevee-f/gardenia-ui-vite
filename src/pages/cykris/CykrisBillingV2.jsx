@@ -2273,6 +2273,8 @@ export default function CykrisBillingV2() {
                  const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
                  const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
                  const color = 'red';
+                 const fontSizeTh = '14px';
+                 const fontSizeTd = '16px';
 
                  pages.push(
                    <div key={i} style={{ position: 'relative', pageBreakAfter: 'always', minHeight: '1200px', color: color }}>
@@ -2297,23 +2299,23 @@ export default function CykrisBillingV2() {
                       
                       <thead>
                          <tr>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', color: color }}>DR No.</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', color: color }}>Destination</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', color: color }}>Description</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '85px', color: color }}>Quantity</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '85px', color: color }}>Unit</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: '11px', fontWeight: 'bold', width: '160px', color: color }}>Declared Amount</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', color: color }}>DR No.</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', color: color }}>Destination</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', color: color }}>Description</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '85px', color: color }}>Quantity</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '85px', color: color }}>Unit</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '160px', color: color }}>Declared Amount</th>
                         </tr>
                        </thead>
                        <tbody>
                          {pageItems.map((item) => (
                            <tr key={item.drId}>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center", color: color }}>{item.drNo || ""}</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center", color: color }}>{item.destination || ""}</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center", color: color }}>{item.description || ""}</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center", color: color }}>{item.quantity || ""}</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "center", color: color }}>{item.unit || ""}</td>
-                             <td style={{ fontFamily: 'Arial', fontSize: '11px', textAlign: "right", color: color }}>{item.dv ? parseFloat(item.dv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.drNo || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.destination || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.description || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.quantity || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.unit || ""}</td>
+                             <td style={{ fontFamily: 'Arial', fontSize: fontSizeTd, textAlign: "center", color: color, padding: '8px' }}>{item.dv ? parseFloat(item.dv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</td>
                            </tr>
                          ))}
                        </tbody>
