@@ -1004,7 +1004,7 @@ export default function CykrisBillingV2() {
         
         // Calculate page totals
         const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
-        const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
+        const pageTotalCharges = pageTotalDV; // pageItems.reduce((sum, item) => sum + item.charges, 0);
         
         // Create worksheet for this page
         const worksheet = workbook.addWorksheet(`Page ${pageIndex + 1}`);
@@ -2271,8 +2271,8 @@ export default function CykrisBillingV2() {
                for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
                  const pageItems = billingStatement.slice(i, i + itemsPerPage);
                  const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
-                 const pageTotalCharges = pageItems.reduce((sum, item) => sum + item.charges, 0);
-                 const color = 'red';
+                 const pageTotalCharges = pageTotalDV; // pageItems.reduce((sum, item) => sum + item.charges, 0);
+                 const color = 'black';
                  const fontSizeTh = '14px';
                  const fontSizeTd = '16px';
 
