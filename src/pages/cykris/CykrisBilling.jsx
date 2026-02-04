@@ -17,8 +17,8 @@ function Modal({ open, onClose, children }) {
 }
 
 export default function CykrisBilling() {
-  const allDr = useQuery(api.dr.getAllDr) || [];
-  const saveDr = useMutation(api.dr.saveDr);
+  const allDr = useQuery(api.cykris.getAllCykris) || [];
+  const saveDr = useMutation(api.cykris.saveCykris);
   const [search, setSearch] = useState("");
   const [billingSearch, setBillingSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -54,7 +54,11 @@ export default function CykrisBilling() {
   const handleDragEnd = () => setDragIndex(null);
 
   const getDRNumber = (str) => {
-    // Handle both old format (DR # 123456789) and new format (DR # 1234567 (1234))
+    if (!str) return '';
+    // First try to extract from parentheses: "DR # 333 (333)" -> "333"
+    const parenMatch = str.match(/\((\d+)\)/);
+    if (parenMatch) return parenMatch[1];
+    // Otherwise extract from after "DR #": "DR # 123456789" -> "123456789"
     const match = str.match(/DR\s*#\s*(\d+)/i);
     return match ? match[1] : str;
   }
@@ -65,6 +69,27 @@ export default function CykrisBilling() {
   // When allDr changes, update local state and sort added items to end
   useEffect(() => {
     if (allDr) {
+      console.log('All DRs from getAllCykris:', allDr);
+      console.log('Total count:', allDr.length);
+      // Log DRs grouped by group_ref_no to see if we have multiple rows per DR#
+      const grouped = {};
+      allDr.forEach(dr => {
+        const key = dr.group_ref_no || 'no-group';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(dr);
+      });
+      console.log('DRs grouped by group_ref_no:', grouped);
+      // Log which DR#s have multiple rows
+      Object.keys(grouped).forEach(key => {
+        if (grouped[key].length > 1) {
+          console.log(`⚠️ DR# ${key} has ${grouped[key].length} rows:`, grouped[key].map(dr => ({
+            _id: dr._id,
+            description: dr.description,
+            quantity: dr.quantity,
+            unit: dr.unit
+          })));
+        }
+      });
       setDrList(allDr);
     }
   }, [allDr]);
@@ -921,9 +946,8 @@ export default function CykrisBilling() {
           <table className="w-full text-sm text-left text-gray-700 bg-white">
             <thead className="text-xs text-gray-700 bg-gray-100">
               <tr>
-                <th className="px-4 py-3">Waybill</th>
-                <th className="px-4 py-3">Destination</th>
                 <th className="px-4 py-3">D.R No.</th>
+                <th className="px-4 py-3">Description</th>
                 {/* <th className="px-4 py-3">DV</th> */}
                 <th className="px-4 py-3">Action</th>
               </tr>
@@ -931,14 +955,21 @@ export default function CykrisBilling() {
             <tbody className="billing-records-table">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center text-gray-400 py-8">Loading records...</td>
+                  <td colSpan={6} className="text-center text-gray-400 py-8">Loading records...</td>
                 </tr>
               ) : (
-                paginated.map((dr, idx) => (
+                paginated.map((dr, idx) => {
+                  console.log('DR object at line 940:', {
+                    _id: dr._id,
+                    ref_no: dr.ref_no,
+                    group_ref_no: dr.group_ref_no,
+                    description: dr.description,
+                    idx: idx
+                  });
+                  return (
                     <tr key={dr._id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 text-sm">{dr.waybill_no}</td>
-                      <td className="px-4 py-3 text-sm">{dr.name_of_dealer}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{getDRNumber(dr.ref_no)}</td>
+                      <td className="px-4 py-3 text-sm">{dr.description || ''}</td>
                       {/* <td className="px-4 py-3 text-sm">â‚±{(parseFloat(dr.declared_amount) || 0).toLocaleString()}</td> */}
                       <td className="px-4 py-3">
                         <button
@@ -964,7 +995,8 @@ export default function CykrisBilling() {
                         </button>
                       </td>
                     </tr>
-                  ))
+                  );
+                })
               )}
             </tbody>
           </table>

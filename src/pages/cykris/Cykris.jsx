@@ -28,6 +28,7 @@ const TYPE_PRICING = {
   "Bajaj Tires (Small)": 45,
   "Truck Tires (Big)": 205,
   "Brake Pipes": 205,
+  "Frame": 250,
 };
 
 // Description options (can be extended, but users can also type custom values)
