@@ -2413,7 +2413,7 @@ export default function CykrisBillingV2() {
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
             {(() => {
-               const itemsPerPage = 22;
+               const itemsPerPage = 12;
                const pages = [];
                
                // Use the same ordered/filtered list as the on-screen table
