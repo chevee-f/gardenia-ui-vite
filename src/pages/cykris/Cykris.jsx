@@ -41,6 +41,7 @@ const DESCRIPTION_OPTIONS = [
   "HELMET M300",
   "FULL FACE CUSTOMIZED",
   "PROMO HELMETS",
+  "SPARE PARTS",
 ];
 
 // Table column widths
@@ -59,7 +60,9 @@ const DESTINATION_OPTIONS = [
   "BUTUAN",
   "CALINAN",
   "CAGAYAN",
+  "CDO BORJA",
   "DIGOS",
+  "DINAGAT",
   "DIPOLOG",
   "ILIGAN",
   "IMELDA",

@@ -31,6 +31,10 @@ export default function CykrisBillingV2() {
   const [sortModalOpen, setSortModalOpen] = useState(false);
   const [destinationOrder, setDestinationOrder] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
+  const [sortDRModalOpen, setSortDRModalOpen] = useState(false);
+  const [drOrder, setDrOrder] = useState([]);
+  const [dragDRIndex, setDragDRIndex] = useState(null);
+  const [drSortDirection, setDrSortDirection] = useState('asc'); // 'asc', 'desc', null
   const [manualAddModalOpen, setManualAddModalOpen] = useState(false);
   const [manualAddForm, setManualAddForm] = useState({
     groupNo: '',
@@ -77,6 +81,20 @@ export default function CykrisBillingV2() {
     setDragIndex(idx);
   };
   const handleDragEnd = () => setDragIndex(null);
+
+  // DR drag handlers
+  const handleDRDragStart = (idx) => setDragDRIndex(idx);
+  const handleDRDragEnter = (idx) => {
+    if (dragDRIndex === null || dragDRIndex === idx) return;
+    setDrOrder(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(dragDRIndex, 1);
+      arr.splice(idx, 0, moved);
+      return arr;
+    });
+    setDragDRIndex(idx);
+  };
+  const handleDRDragEnd = () => setDragDRIndex(null);
 
   const getDRNumber = (str) => {
     // Handle both old format (DR # 123456789) and new format (DR # 1234567 (1234))
@@ -521,18 +539,45 @@ export default function CykrisBillingV2() {
     setNewStatementSaveName('');
   };
 
-  // Filter billing statement based on search
+  // Filter and sort billing statement based on search and DR sort
   const filteredBillingStatement = useMemo(() => {
-    if (!billingSearch.trim()) return billingStatement;
-    const s = billingSearch.toLowerCase();
-    return billingStatement.filter(item =>
-      item.waybillNo?.toLowerCase().includes(s) ||
-      item.destination?.toLowerCase().includes(s) ||
-      item.drNo?.toLowerCase().includes(s) // ||
-      // item.wbDate?.toLowerCase().includes(s) ||
-      // item.drDate?.toLowerCase().includes(s)
-    );
-  }, [billingStatement, billingSearch]);
+    let filtered = billingStatement;
+    
+    // Apply search filter
+    if (billingSearch.trim()) {
+      const s = billingSearch.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.waybillNo?.toLowerCase().includes(s) ||
+        item.destination?.toLowerCase().includes(s) ||
+        item.drNo?.toLowerCase().includes(s)
+      );
+    }
+    
+    // Apply DR sort if enabled
+    if (drSortDirection) {
+      filtered = [...filtered].sort((a, b) => {
+        const drA = a.drNo || '';
+        const drB = b.drNo || '';
+        
+        // Try to parse as numbers for numeric comparison
+        const numA = parseInt(drA, 10);
+        const numB = parseInt(drB, 10);
+        
+        let comparison = 0;
+        if (!isNaN(numA) && !isNaN(numB)) {
+          // Both are numbers, compare numerically
+          comparison = numA - numB;
+        } else {
+          // At least one is not a number, compare as strings
+          comparison = drA.localeCompare(drB);
+        }
+        
+        return drSortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+    
+    return filtered;
+  }, [billingStatement, billingSearch, drSortDirection]);
 
   // Get unique destinations in current billing statement (in order of appearance)
   const uniqueDestinations = useMemo(() => {
@@ -547,10 +592,30 @@ export default function CykrisBillingV2() {
     return result;
   }, [filteredBillingStatement]);
 
+  // Get unique DR numbers in current billing statement (in order of appearance)
+  const uniqueDRs = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const item of filteredBillingStatement) {
+      const drNo = item.drNo || '';
+      if (drNo && !seen.has(drNo)) {
+        seen.add(drNo);
+        result.push(drNo);
+      }
+    }
+    return result;
+  }, [filteredBillingStatement]);
+
   // Open modal and initialize order
   const openSortModal = () => {
     setDestinationOrder(uniqueDestinations);
     setSortModalOpen(true);
+  };
+
+  // Open DR sort modal and initialize order
+  const openSortDRModal = () => {
+    setDrOrder(uniqueDRs);
+    setSortDRModalOpen(true);
   };
 
   // Move destination up/down in modal
@@ -587,6 +652,18 @@ export default function CykrisBillingV2() {
       return grouped.flat();
     });
     setSortModalOpen(false);
+  };
+
+  // Save DR order and reorder billing statement
+  const saveDROrder = () => {
+    // Reorder billingStatement by new DR order
+    setBillingStatement(prev => {
+      const grouped = drOrder.map(drNo =>
+        prev.filter(item => item.drNo === drNo)
+      );
+      return grouped.flat();
+    });
+    setSortDRModalOpen(false);
   };
 
   const getRowColor = (waybillNo, wbDate, drDate) => {
@@ -1566,6 +1643,13 @@ export default function CykrisBillingV2() {
                 onClick={openSortModal}
                 title="Sort Destinations"
               >
+                Sort Destinations
+              </button>
+              <button
+                className="hidden px-4 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-200"
+                onClick={openSortDRModal}
+                title="Sort by DR#"
+              >
                 Sort
               </button>
               <button
@@ -1641,6 +1725,38 @@ export default function CykrisBillingV2() {
           <table className="w-full text-sm text-left text-gray-700 bg-white">
             <thead className="text-xs text-gray-700 bg-gray-100 sticky top-0 z-1">
               <tr>
+                <th 
+                  className="px-3 py-3 cursor-pointer hover:bg-gray-200 select-none"
+                  onClick={() => {
+                    if (drSortDirection === null) {
+                      setDrSortDirection('asc');
+                    } else if (drSortDirection === 'asc') {
+                      setDrSortDirection('desc');
+                    } else {
+                      setDrSortDirection(null);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>DR#</span>
+                    <div className="flex flex-col">
+                      <svg 
+                        className={`w-3 h-3 ${drSortDirection === 'asc' ? 'text-blue-600' : 'text-gray-400'}`}
+                        fill="currentColor" 
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                      <svg 
+                        className={`w-3 h-3 -mt-1 ${drSortDirection === 'desc' ? 'text-blue-600' : 'text-gray-400'}`}
+                        fill="currentColor" 
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                </th>
                 <th className="px-3 py-3">Description</th>
                 <th className="px-3 py-3">Quantity</th>
                 <th className="px-3 py-3">Unit</th>
@@ -1651,7 +1767,7 @@ export default function CykrisBillingV2() {
             <tbody>
               {filteredBillingStatement.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center text-gray-400 py-8">
+                  <td colSpan={6} className="text-center text-gray-400 py-8">
                     {billingSearch ? 'No items match your search.' : 'No items in billing statement.'}
                   </td>
                 </tr>
@@ -1661,6 +1777,9 @@ export default function CykrisBillingV2() {
                     key={item.drId}
                     className={`${getRowColor(item.waybillNo, item.wbDate, item.drDate)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
                   >
+                    <td className="px-3 py-3 text-sm">
+                      {item.drNo || '-'}
+                    </td>
                     <td className="px-3 py-3 text-sm">
                       {item.description || '-'}
                     </td>
@@ -1830,6 +1949,37 @@ export default function CykrisBillingV2() {
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               onClick={saveDestinationOrder}
+            >Save Order</button>
+          </div>
+        </Modal>
+        <Modal open={sortDRModalOpen} onClose={() => setSortDRModalOpen(false)}>
+          <h2 className="text-lg font-bold mb-4">Sort by DR#</h2>
+          <ul className="mb-4">
+            {drOrder.map((drNo, idx) => (
+              <li
+                key={drNo}
+                draggable
+                onDragStart={() => handleDRDragStart(idx)}
+                onDragEnter={() => handleDRDragEnter(idx)}
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnd={handleDRDragEnd}
+                className={`flex items-center gap-2 mb-2 rounded px-3 py-2 border ${dragDRIndex === idx ? 'bg-purple-50 border-purple-300' : 'bg-gray-50'
+                  }`}
+                title="Drag to reorder"
+              >
+                <span className="cursor-grab select-none">↕</span>
+                <span className="flex-1 truncate">DR #{drNo}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={() => setSortDRModalOpen(false)}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              onClick={saveDROrder}
             >Save Order</button>
           </div>
         </Modal>
@@ -2262,12 +2412,15 @@ export default function CykrisBillingV2() {
         {/* Hidden print version */}
         <div style={{ display: "none" }}>
                      <div ref={newPrintRef}>
-             {(() => {
+            {(() => {
                const itemsPerPage = 22;
                const pages = [];
                
-               for (let i = 0; i < billingStatement.length; i += itemsPerPage) {
-                 const pageItems = billingStatement.slice(i, i + itemsPerPage);
+               // Use the same ordered/filtered list as the on-screen table
+               const sourceItems = filteredBillingStatement;
+
+               for (let i = 0; i < sourceItems.length; i += itemsPerPage) {
+                 const pageItems = sourceItems.slice(i, i + itemsPerPage);
                  const pageTotalDV = pageItems.reduce((sum, item) => sum + item.dv, 0);
                  const pageTotalCharges = pageTotalDV; // pageItems.reduce((sum, item) => sum + item.charges, 0);
                  const color = 'black';
@@ -2302,7 +2455,7 @@ export default function CykrisBillingV2() {
                            <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', color: color }}>Description</th>
                            <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '85px', color: color }}>Quantity</th>
                            <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '85px', color: color }}>Unit</th>
-                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '160px', color: color }}>Declared Amount</th>
+                           <th style={{ textAlign: "center", fontFamily: 'Arial', fontSize: fontSizeTh, fontWeight: 'bold', width: '160px', color: color }}>Amount</th>
                         </tr>
                        </thead>
                        <tbody>
