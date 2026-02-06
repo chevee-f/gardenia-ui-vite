@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye } from 'react-icons/hi';
+import { HiOutlineRefresh, HiOutlineSearch, HiOutlineEye, HiOutlineChevronDown, HiOutlineChevronUp } from 'react-icons/hi';
 import { HiOutlineXCircle } from 'react-icons/hi';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -112,6 +112,7 @@ function Cykris() {
   const [isAddDRloading, setIsAddDRloading] = useState(false);
   const [addDRError, setAddDRError] = useState(null);
   const [hasLocalCykrisData, setHasLocalCykrisData] = useState(false);
+  const [expandedDRGroups, setExpandedDRGroups] = useState({});
 
   // Form state
   const [formData, setFormData] = useState({
@@ -655,30 +656,35 @@ function Cykris() {
     // Validate all rows
     for (let i = 0; i < formData.rows.length; i++) {
       const row = formData.rows[i];
-      if (!row.quantity.trim()) {
+      const quantity = String(row.quantity || '').trim();
+      const boxes = String(row.boxes || '').trim();
+      
+      if (!quantity) {
         setAddDRError(`Row ${i + 1}: Quantity is required`);
         setIsAddDRloading(false);
         return;
       }
-      if (!/^\d+$/.test(row.quantity)) {
+      if (!/^\d+$/.test(quantity)) {
         setAddDRError(`Row ${i + 1}: Quantity must be a number`);
         setIsAddDRloading(false);
         return;
       }
-      if (!row.boxes.trim()) {
+      if (!boxes) {
         setAddDRError(`Row ${i + 1}: Boxes is required`);
         setIsAddDRloading(false);
         return;
       }
-      if (!/^\d+$/.test(row.boxes)) {
+      if (!/^\d+$/.test(boxes)) {
         setAddDRError(`Row ${i + 1}: Boxes must be a number`);
         setIsAddDRloading(false);
         return;
       }
     }
 
-    // Generate a group number based on DR # (or use DR # as group)
-    const groupNo = formData.drNo;
+    // When editing, use the original DR number from editingIndex; otherwise use the new DR number
+    const originalDrNo = editingIndex !== null ? editingIndex : null;
+    const newDrNo = formData.drNo; // New DR number (may be same or different if DR# changed)
+    const groupNo = newDrNo; // Use DR number as group number
 
     // Create multiple DR entries - one for each row
     const newDRs = formData.rows.map((row, index) => {
@@ -750,10 +756,43 @@ function Cykris() {
     });
 
     try {
-      // Save to database
+      if (editingIndex !== null && originalDrNo) {
+        // For editing, we need to remove all existing rows for this DR from database FIRST
+        // Use the ORIGINAL DR number to find existing rows
+        const existingRows = jsonData.filter(item => {
+          const itemRef = item["REF NO."];
+          const itemMatch = itemRef && itemRef.match(/DR\s*#\s*([^\s]+)/);
+          return itemMatch && itemMatch[1] === originalDrNo;
+        });
+        
+        // Delete old rows from database BEFORE saving new ones
+        if (existingRows.length > 0) {
+          const deleteData = existingRows.map(item => {
+            // Extract group_ref_no from existing item's REF NO
+            const refMatch = item["REF NO."].match(/\(([^)]+)\)/);
+            const existingGroupNo = refMatch ? refMatch[1] : originalDrNo;
+            
+            return {
+              ref_no: item["REF NO."],
+              group_ref_no: existingGroupNo,
+              waybill_no: item["waybill_no"] || ""
+            };
+          });
+          console.log('Editing DR: Deleting old rows for original DR#', originalDrNo, ':', deleteData.length, 'rows');
+          console.log('Editing DR: Will save new rows with new DR#', newDrNo, ':', dbDataArray.length, 'rows');
+          try {
+            await deleteCykris({ data: deleteData });
+            console.log('Successfully deleted old rows');
+          } catch (deleteErr) {
+            console.error('Failed to delete old rows:', deleteErr);
+            // Continue anyway - we'll still save the new rows
+          }
+        }
+      }
+
+      // Save to database (all rows - both new and edited)
       console.log('Saving DR with multiple rows:', {
         drNo: formData.drNo,
-        groupNo: groupNo,
         rowCount: dbDataArray.length,
         rows: dbDataArray.map((row, idx) => ({
           index: idx,
@@ -766,38 +805,15 @@ function Cykris() {
       await saveCykris({ data: dbDataArray });
       console.log('Successfully saved', dbDataArray.length, 'rows for DR#', formData.drNo);
 
-      if (editingIndex !== null) {
-        // For editing, we need to remove all existing rows for this DR from database and local state
-        // Find all existing rows with the same group number
-        const existingRows = jsonData.filter(item => {
-          const ref = item["REF NO."];
-          const match = ref && ref.match(/\(([^)]*)\)/);
-          return match && match[1] === groupNo;
-        });
-        
-        // Delete old rows from database
-        if (existingRows.length > 0) {
-          const deleteData = existingRows.map(item => ({
-            ref_no: item["REF NO."],
-            group_ref_no: groupNo,
-            waybill_no: item["waybill_no"] || ""
-          }));
-          console.log('Deleting old rows for DR#', groupNo, ':', deleteData.length, 'rows');
-          try {
-            await deleteCykris({ data: deleteData });
-            console.log('Successfully deleted old rows');
-          } catch (deleteErr) {
-            console.error('Failed to delete old rows:', deleteErr);
-            // Continue anyway - we'll still save the new rows
-          }
-        }
-        
-        // Remove from local state and add new ones
+      // Update local state
+      if (editingIndex !== null && originalDrNo) {
+        // Remove old rows from local state and add new ones
+        // Use the ORIGINAL DR number to filter out old rows
         setJsonData(prev => {
           const filtered = prev.filter(item => {
-            const ref = item["REF NO."];
-            const match = ref && ref.match(/\(([^)]*)\)/);
-            return !match || match[1] !== groupNo;
+            const itemRef = item["REF NO."];
+            const itemMatch = itemRef && itemRef.match(/DR\s*#\s*([^\s]+)/);
+            return !itemMatch || itemMatch[1] !== originalDrNo;
           });
           return [...filtered, ...newDRs];
         });
@@ -817,10 +833,10 @@ function Cykris() {
     }
   };
 
-  // Edit DR - finds all rows for the same DR group
+  // Edit DR - finds all rows for the same DR number
   const handleEdit = (index) => {
     const dr = jsonData[index];
-    const refMatch = dr["REF NO."].match(/DR\s*#\s*([^\s]+)\s*\(([^)]+)\)/);
+    const refMatch = dr["REF NO."].match(/DR\s*#\s*([^\s]+)/);
     
     if (!refMatch) {
       alert('Invalid DR format');
@@ -828,13 +844,12 @@ function Cykris() {
     }
 
     const drNo = refMatch[1];
-    const groupNo = refMatch[2];
     
-    // Find all rows with the same group number
+    // Find all rows with the same DR number
     const allRowsForDR = jsonData.filter(item => {
       const itemRef = item["REF NO."];
-      const itemMatch = itemRef && itemRef.match(/\(([^)]+)\)/);
-      return itemMatch && itemMatch[1] === groupNo;
+      const itemMatch = itemRef && itemRef.match(/DR\s*#\s*([^\s]+)/);
+      return itemMatch && itemMatch[1] === drNo;
     });
 
     // Extract rows data
@@ -861,8 +876,8 @@ function Cykris() {
       }]
     });
     
-    // Store the group number for editing
-    setEditingIndex(groupNo);
+    // Store the original DR number for editing
+    setEditingIndex(drNo);
     setFormOpen(true);
   };
 
@@ -980,69 +995,210 @@ function Cykris() {
                   </tr>
                 </thead>
                 <tbody>
-                  {jsonData
-                    .filter((row) => {
+                  {(() => {
+                    // Filter data first
+                    const filteredData = jsonData.filter((row) => {
                       if (!searchQuery) return true;
                       const values = Object.values(row).join(' ').toLowerCase();
                       return values.includes(searchQuery.toLowerCase());
-                    })
-                    .map((row, idx) => {
-                      const isSaved = getSavedCykris?.some(savedDr => 
-                        savedDr.ref_no === row["REF NO."]
+                    });
+                    
+                    // Group by DR
+                    const groups = groupByParenthesis(filteredData);
+                    const groupKeys = Object.keys(groups);
+                    
+                    if (groupKeys.length === 0) {
+                      return null;
+                    }
+                    
+                    let rowCounter = 0;
+                    return groupKeys.map((groupKey) => {
+                      const group = groups[groupKey];
+                      const firstRow = group.rows[0];
+                      const drNo = getDRNumber(firstRow["REF NO."]);
+                      const destination = firstRow["DESTINATION"] || firstRow["ADDRESS"] || '-';
+                      const isGroupSaved = group.rows.some(row => 
+                        getSavedCykris?.some(savedDr => savedDr.ref_no === row["REF NO."])
                       );
+                      const hasMultipleRows = group.rows.length > 1;
+                      const isExpanded = expandedDRGroups[groupKey] || false;
                       
                       return (
-                        <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${isSaved ? 'border-l-4 border-l-green-500' : ''}`}>
-                          <td className="px-2 py-1.5 font-medium text-center">
-                            {idx + 1}
-                            {isSaved && (
-                              <div className="text-xs text-green-600 font-medium mt-0.5">✓ Saved</div>
-                            )}
-                          </td>
-                          <td className="px-2 py-1.5">{getDRNumber(row["REF NO."])}</td>
-                          <td className="px-2 py-1.5 break-words">{row["DESTINATION"] || row["ADDRESS"] || '-'}</td>
-                          <td className="px-2 py-1.5">{row["TYPE"] || '-'}</td>
-                          <td className="px-2 py-1.5">{row["DESCRIPTION"] || '-'}</td>
-                          <td className="px-2 py-1.5">{row["QUANTITY"] || '-'}</td>
-                          <td className="px-2 py-1.5">{row["UNIT"] || '-'}</td>
-                          <td className="px-2 py-1.5">
-                            {(() => {
-                              // Calculate amount if not stored, or use stored amount
-                              const storedAmount = row["DECLARED AMOUNT"];
-                              if (storedAmount) return storedAmount;
+                        <React.Fragment key={groupKey}>
+                          {hasMultipleRows ? (
+                            // Multi-row DR: Show collapsed header when closed, all rows when expanded
+                            <>
+                              {!isExpanded ? (
+                                // Collapsed state: Show only a header row with accordion button
+                                <tr className="bg-gray-100 hover:bg-gray-200 transition-colors border-b border-gray-300">
+                                  <td className="px-2 py-2 font-medium text-center">
+                                    <button
+                                      onClick={() => setExpandedDRGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }))}
+                                      className="flex items-center gap-2 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded border border-blue-300 transition-colors"
+                                      title={`Expand (${group.rows.length} items)`}
+                                    >
+                                      <HiOutlineChevronDown className="w-5 h-5" />
+                                      <span className="text-sm font-semibold">{group.rows.length} items</span>
+                                    </button>
+                                  </td>
+                                  <td className="px-2 py-2 font-semibold text-blue-800">{drNo}</td>
+                                  <td className="px-2 py-2 break-words">{destination}</td>
+                                  <td colSpan={6} className="px-2 py-2">
+                                    <div className="flex gap-1.5">
+                                      <button
+                                        onClick={() => handleEdit(group.indices[0])}
+                                        className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(group.indices[0])}
+                                        className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : (
+                                // Expanded state: Show all rows
+                                group.rows.map((row, rowIdx) => {
+                                  const originalIdx = group.indices[rowIdx];
+                                  const isSaved = getSavedCykris?.some(savedDr => 
+                                    savedDr.ref_no === row["REF NO."]
+                                  );
+                                  rowCounter++;
+                                  
+                                  return (
+                                    <tr key={`${groupKey}-${rowIdx}`} className={`${rowCounter % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${isSaved ? 'border-l-4 border-l-green-500' : ''}`}>
+                                      <td className="px-2 py-1.5 font-medium text-center">
+                                        {rowIdx === 0 ? (
+                                          <div className="flex items-center justify-center gap-2">
+                                            <button
+                                              onClick={() => setExpandedDRGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }))}
+                                              className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded border border-blue-300 transition-colors"
+                                              title="Collapse"
+                                            >
+                                              <HiOutlineChevronUp className="w-5 h-5" />
+                                              <span className="text-xs font-semibold">{group.rows.length}</span>
+                                            </button>
+                                            <span>{rowCounter}</span>
+                                          </div>
+                                        ) : (
+                                          <span>{rowCounter}</span>
+                                        )}
+                                        {isSaved && (
+                                          <div className="text-xs text-green-600 font-medium mt-0.5">✓ Saved</div>
+                                        )}
+                                      </td>
+                                      <td className="px-2 py-1.5">{getDRNumber(row["REF NO."])}</td>
+                                      <td className="px-2 py-1.5 break-words">{row["DESTINATION"] || row["ADDRESS"] || '-'}</td>
+                                      <td className="px-2 py-1.5">{row["TYPE"] || '-'}</td>
+                                      <td className="px-2 py-1.5">{row["DESCRIPTION"] || '-'}</td>
+                                      <td className="px-2 py-1.5">{row["QUANTITY"] || '-'}</td>
+                                      <td className="px-2 py-1.5">{row["UNIT"] || '-'}</td>
+                                      <td className="px-2 py-1.5">
+                                        {(() => {
+                                          const storedAmount = row["DECLARED AMOUNT"];
+                                          if (storedAmount) return storedAmount;
+                                          const type = row["TYPE"];
+                                          const quantity = row["QUANTITY"];
+                                          if (type && quantity) {
+                                            const price = TYPE_PRICING[type];
+                                            if (price) {
+                                              const qty = parseFloat(quantity);
+                                              return (qty * price).toFixed(2);
+                                            }
+                                          }
+                                          return '-';
+                                        })()}
+                                      </td>
+                                      <td className="px-2 py-1.5">
+                                        {rowIdx === 0 ? (
+                                          <div className="flex gap-1.5">
+                                            <button
+                                              onClick={() => handleEdit(originalIdx)}
+                                              className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              onClick={() => handleDelete(originalIdx)}
+                                              className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>
+                                        ) : null}
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </>
+                          ) : (
+                            // Single-row DR: Always show normally
+                            (() => {
+                              const originalIdx = group.indices[0];
+                              const isSaved = getSavedCykris?.some(savedDr => 
+                                savedDr.ref_no === firstRow["REF NO."]
+                              );
+                              rowCounter++;
                               
-                              // Calculate from type and quantity
-                              const type = row["TYPE"];
-                              const quantity = row["QUANTITY"];
-                              if (type && quantity) {
-                                const price = TYPE_PRICING[type];
-                                if (price) {
-                                  const qty = parseFloat(quantity);
-                                  return (qty * price).toFixed(2);
-                                }
-                              }
-                              return '-';
-                            })()}
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => handleEdit(idx)}
-                                className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(idx)}
-                                className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                              return (
+                                <tr className={`${rowCounter % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${isSaved ? 'border-l-4 border-l-green-500' : ''}`}>
+                                  <td className="px-2 py-1.5 font-medium text-center">
+                                    <span>{rowCounter}</span>
+                                    {isSaved && (
+                                      <div className="text-xs text-green-600 font-medium mt-0.5">✓ Saved</div>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1.5">{drNo}</td>
+                                  <td className="px-2 py-1.5 break-words">{destination}</td>
+                                  <td className="px-2 py-1.5">{firstRow["TYPE"] || '-'}</td>
+                                  <td className="px-2 py-1.5">{firstRow["DESCRIPTION"] || '-'}</td>
+                                  <td className="px-2 py-1.5">{firstRow["QUANTITY"] || '-'}</td>
+                                  <td className="px-2 py-1.5">{firstRow["UNIT"] || '-'}</td>
+                                  <td className="px-2 py-1.5">
+                                    {(() => {
+                                      const storedAmount = firstRow["DECLARED AMOUNT"];
+                                      if (storedAmount) return storedAmount;
+                                      const type = firstRow["TYPE"];
+                                      const quantity = firstRow["QUANTITY"];
+                                      if (type && quantity) {
+                                        const price = TYPE_PRICING[type];
+                                        if (price) {
+                                          const qty = parseFloat(quantity);
+                                          return (qty * price).toFixed(2);
+                                        }
+                                      }
+                                      return '-';
+                                    })()}
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <div className="flex gap-1.5">
+                                      <button
+                                        onClick={() => handleEdit(originalIdx)}
+                                        className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(originalIdx)}
+                                        className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })()
+                          )}
+                        </React.Fragment>
                       );
-                    })}
+                    });
+                  })()}
                 </tbody>
               </table>
               {jsonData.length === 0 && (

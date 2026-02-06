@@ -138,12 +138,11 @@ export default function CykrisBillingV2() {
 
   // Removed expensive sorting useEffect - was causing lag with 40+ items
 
-  // Auto-save billing statement and DR list to localStorage whenever they change
+  // Auto-save billing statement to localStorage whenever it changes
   useEffect(() => {
     if (billingStatement.length > 0) {
       const saveData = {
         billingStatement,
-        drList,
         timestamp: new Date().toISOString(),
         version: '1.0'
       };
@@ -178,7 +177,6 @@ export default function CykrisBillingV2() {
       if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
         const backupData = {
           billingStatement,
-          drList,
           timestamp: new Date().toISOString(),
           version: '1.0',
           isBackup: true,
@@ -199,11 +197,8 @@ export default function CykrisBillingV2() {
         setBillingStatement(data.billingStatement);
         console.log(`Billing statement auto-loaded from ${source}:`, data.billingStatement.length, 'items');
         
-        // Restore DR list if available
-        if (data.drList && Array.isArray(data.drList)) {
-          setDrList(data.drList);
-          console.log('DR list also restored:', data.drList.length, 'items');
-        }
+        // Intentionally do NOT restore `drList` from storage.
+        // Billing Records should always reflect live DB (`allDr`) via Convex.
         
         // Show timestamp info
         if (data.timestamp) {
@@ -227,9 +222,6 @@ export default function CykrisBillingV2() {
         
         if (currentStatement && currentStatement.billingStatement) {
           setBillingStatement(currentStatement.billingStatement);
-          if (currentStatement.drList) {
-            setDrList(currentStatement.drList);
-          }
           setCurrentStatementName(currentStatementName);
           setSavedStatements(parsedStatements);
           console.log(`Restored current billing statement "${currentStatementName}" with ${currentStatement.billingStatement.length} items`);
@@ -334,14 +326,20 @@ export default function CykrisBillingV2() {
   const addToBillingStatement = (dr) => {
     if (isDRAdded(dr._id)) return;
 
-    const [percent, address] = getRateForDestination(dr.name_of_dealer || '', dr.address || '');
+    // Check destination in order: destination -> address -> name_of_dealer
+    const destinationValue = dr.destination || dr.address || dr.name_of_dealer || '';
+    const [percent, matchedAddress] = getRateForDestination(destinationValue, dr.address || dr.name_of_dealer || '');
+    
+    // Use matched address from rates if found, otherwise use the original destination value
+    const finalDestination = matchedAddress || destinationValue;
+    
     const dv = parseFloat(dr.declared_amount) || 0;
     console.log('dr:', dr);
     const newItem = {
       drId: dr._id,
       waybillNo: dr.waybill_no || '',
       wbDate: '',
-      destination: address || '',
+      destination: finalDestination,
       drNo: getDRNumber(dr.ref_no),
       drDate: '',
       dv,
