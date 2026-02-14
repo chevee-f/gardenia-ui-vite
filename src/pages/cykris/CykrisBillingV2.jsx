@@ -8,12 +8,20 @@ import rates from './rates.json';
 // Set to true to enable, false to disable (for testing)
 const ENABLE_BILLING_WAYBILL_STORAGE = false;
 
-function Modal({ open, onClose, children }) {
+function Modal({ open, onClose, children, dismissible = true }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-lg p-6 min-w-[340px] max-w-[90vw] relative">
-        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold">&times;</button>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={dismissible ? onClose : undefined}
+    >
+      <div 
+        className="bg-white rounded-xl shadow-lg p-6 min-w-[340px] max-w-[90vw] relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {dismissible && (
+          <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold">&times;</button>
+        )}
         {children}
       </div>
     </div>
@@ -67,6 +75,14 @@ export default function CykrisBillingV2() {
   // Email notification hooks
   const sendBillingEmail = useAction(api.sendEmail.sendCykrisBillingEmail);
   const recordBillingPrint = useMutation(api.billing.recordBillingPrint);
+  const recordPrint = useMutation(api.billing.recordPrint);
+  const updatePrintEmailSent = useMutation(api.billing.updatePrintEmailSent);
+  const unsentEmailCount = useQuery(api.billing.getUnsentEmailCount) || 0;
+  
+  // Email prompt modal state
+  const [emailPromptOpen, setEmailPromptOpen] = useState(false);
+  const [latestPrintId, setLatestPrintId] = useState(null);
+  const [pendingPrintType, setPendingPrintType] = useState(null);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -717,17 +733,24 @@ export default function CykrisBillingV2() {
         items: emailItems,
       });
       
-      // Log to database
-      await recordBillingPrint({
-        printType,
-        totalSales,
-        totalDue,
-        itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
-      });
+      // If there's a pending print record, mark it as email sent
+      if (latestPrintId) {
+        await updatePrintEmailSent({ printId: latestPrintId });
+        setLatestPrintId(null);
+      } else {
+        // Legacy: Log to database (for backward compatibility)
+        await recordBillingPrint({
+          printType,
+          totalSales,
+          totalDue,
+          itemCount,
+          recipientEmail: "chevee.kid@gmail.com"
+        });
+      }
       
       console.log("✅ Billing notification sent successfully");
       setEmailSending(false);
+      setEmailPromptOpen(false);
       return { success: true };
     } catch (error) {
       console.error("❌ Failed to send billing notification:", error);
@@ -745,9 +768,32 @@ export default function CykrisBillingV2() {
   };
 
   // Print without labels (current behavior)
-  const printWithoutLabels = () => {
-    setPrintOptionsModalOpen(false);
+  const printWithoutLabels = async () => {
+    // Don't close print options modal - keep it open
     setShowDivider(false);
+    
+    // Record print event
+    const totalSales = totalDV;
+    const totalDue = totalCharges;
+    const itemCount = filteredBillingStatement.length;
+    const recipientEmail = "chevee.kid@gmail.com";
+    
+    try {
+      const result = await recordPrint({
+        printType: "Email Report",
+        totalSales,
+        totalDue,
+        itemCount,
+        recipientEmail
+      });
+      setLatestPrintId(result.id);
+      setPendingPrintType("Email Report");
+    } catch (error) {
+      console.error("Failed to record print:", error);
+    }
+    
+    // Show email prompt modal immediately
+    setEmailPromptOpen(true);
     
     // Wait for React to re-render without the divider
     requestAnimationFrame(() => {
@@ -805,6 +851,7 @@ export default function CykrisBillingV2() {
     `);
         printWindow.document.close();
         printWindow.focus();
+        
         // printWindow.print();
         // printWindow.close();
       });
@@ -812,9 +859,32 @@ export default function CykrisBillingV2() {
   };
 
   // Print with labels
-  const printWithLabels = () => {
-    setPrintOptionsModalOpen(false);
+  const printWithLabels = async () => {
+    // Don't close print options modal - keep it open
     setShowDivider(true);
+    
+    // Record print event
+    const totalSales = totalDV;
+    const totalDue = totalCharges;
+    const itemCount = filteredBillingStatement.length;
+    const recipientEmail = "chevee.kid@gmail.com";
+    
+    try {
+      const result = await recordPrint({
+        printType: "Email Report",
+        totalSales,
+        totalDue,
+        itemCount,
+        recipientEmail
+      });
+      setLatestPrintId(result.id);
+      setPendingPrintType("Email Report");
+    } catch (error) {
+      console.error("Failed to record print:", error);
+    }
+    
+    // Show email prompt modal immediately
+    setEmailPromptOpen(true);
     
     // Wait for React to re-render with the divider
     requestAnimationFrame(() => {
@@ -872,6 +942,7 @@ export default function CykrisBillingV2() {
     `);
         printWindow.document.close();
         printWindow.focus();
+        
         // printWindow.print();
         // printWindow.close();
       });
@@ -2404,7 +2475,7 @@ export default function CykrisBillingV2() {
               Print Copy
             </button>
             <button
-              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative"
               onClick={() => notifyBillingPrint("Email Report")}
               disabled={emailSending || billingStatement.length === 0}
             >
@@ -2412,6 +2483,11 @@ export default function CykrisBillingV2() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               {emailSending ? 'Sending...' : 'Send Email Report'}
+              {unsentEmailCount > 0 && (
+                <span className="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                  {unsentEmailCount}
+                </span>
+              )}
             </button>
           </div>
           <div className="flex justify-end gap-2 mt-6">
@@ -2421,6 +2497,44 @@ export default function CykrisBillingV2() {
             >
               Cancel
             </button>
+          </div>
+        </Modal>
+
+        {/* Email Prompt Modal - Non-dismissible */}
+        <Modal 
+          open={emailPromptOpen} 
+          onClose={() => setEmailPromptOpen(false)}
+          dismissible={false}
+        >
+          <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">📧 Send Email Report?</h2>
+            <p className="text-gray-600 mb-6">
+              You just printed the billing statement. Would you like to send the email report now?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => {
+                  setEmailPromptOpen(false);
+                  setPrintOptionsModalOpen(false);
+                }}
+                disabled={emailSending}
+              >
+                Skip
+              </button>
+              <button
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                onClick={async () => {
+                  if (pendingPrintType) {
+                    await notifyBillingPrint(pendingPrintType);
+                    setPrintOptionsModalOpen(false);
+                  }
+                }}
+                disabled={emailSending}
+              >
+                {emailSending ? 'Sending...' : 'Send Email Now'}
+              </button>
+            </div>
           </div>
         </Modal>
 

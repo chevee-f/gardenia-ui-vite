@@ -44,6 +44,7 @@ export default defineSchema({
     totalDue: v.number(),
     itemCount: v.number(),
     recipientEmail: v.string(),
-    status: v.string()
+    status: v.string(),
+    emailSent: v.optional(v.boolean())
   })
 });
