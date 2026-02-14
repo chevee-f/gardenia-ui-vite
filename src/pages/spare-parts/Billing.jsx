@@ -609,7 +609,6 @@ export default function Billing() {
       drNo: item.drNo || "",
       drDate: item.drDate || "",
       // Monetary fields
-      dv: typeof item.dv === "number" ? item.dv : parseFloat(item.dv || "0") || 0,
       percent: typeof item.percent === "number" ? item.percent : parseFloat(item.percent || "0") || 0,
       charges: typeof item.charges === "number" ? item.charges : parseFloat(item.charges || "0") || 0,
       // Map to shared fields expected by backend
