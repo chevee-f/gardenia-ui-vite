@@ -61,7 +61,7 @@ export default function Billing() {
   const [showDivider, setShowDivider] = useState(false);
 
   // Email notification hooks
-  const sendBillingEmail = useAction(api.sendEmail.sendBillingEmail);
+  const sendBillingEmail = useAction(api.sendEmail.sendSparePartsBillingEmail);
   const recordBillingPrint = useMutation(api.billing.recordBillingPrint);
 
   // DnD handlers for modal list
