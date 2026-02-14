@@ -65,7 +65,7 @@ export default function CykrisBillingV2() {
   const [showDivider, setShowDivider] = useState(false);
 
   // Email notification hooks
-  const sendBillingEmail = useAction(api.sendEmail.sendBillingEmail);
+  const sendBillingEmail = useAction(api.sendEmail.sendCykrisBillingEmail);
   const recordBillingPrint = useMutation(api.billing.recordBillingPrint);
 
   // DnD handlers for modal list
@@ -689,6 +689,20 @@ export default function CykrisBillingV2() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
+    // Prepare detailed items (match fields visible in print table)
+    const emailItems = filteredBillingStatement.map((item) => ({
+      drNo: item.drNo || "",
+      destination: item.destination || "",
+      description: item.description || "",
+      quantity: item.quantity ?? "",
+      unit: item.unit || "",
+      amount: typeof item.dv === "number" ? item.dv : parseFloat(item.dv || "0") || 0,
+      waybillNo: item.waybillNo || "",
+      wbDate: item.wbDate || "",
+      drDate: item.drDate || "",
+      percent: typeof item.percent === "number" ? item.percent : undefined,
+      charges: typeof item.charges === "number" ? item.charges : parseFloat(item.charges || "0") || 0,
+    }));
     
     setEmailSending(true);
     
@@ -699,7 +713,8 @@ export default function CykrisBillingV2() {
         totalSales,
         totalDue,
         itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
+        recipientEmail: "chevee.kid@gmail.com",
+        items: emailItems,
       });
       
       // Log to database
