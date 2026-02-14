@@ -599,6 +599,22 @@ export default function Billing() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
+    const recipientEmail = "chevee.kid@gmail.com";
+    // Prepare detailed items (match fields visible in print table)
+    const emailItems = filteredBillingStatement.map((item) => ({
+      // Spare-parts print table columns
+      waybillNo: item.waybillNo || "",
+      wbDate: item.wbDate || "",
+      destination: item.destination || "",
+      drNo: item.drNo || "",
+      drDate: item.drDate || "",
+      // Monetary fields
+      dv: typeof item.dv === "number" ? item.dv : parseFloat(item.dv || "0") || 0,
+      percent: typeof item.percent === "number" ? item.percent : parseFloat(item.percent || "0") || 0,
+      charges: typeof item.charges === "number" ? item.charges : parseFloat(item.charges || "0") || 0,
+      // Map to shared fields expected by backend
+      amount: typeof item.dv === "number" ? item.dv : parseFloat(item.dv || "0") || 0,
+    }));
     
     setEmailSending(true);
     
@@ -609,7 +625,8 @@ export default function Billing() {
         totalSales,
         totalDue,
         itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
+        recipientEmail: recipientEmail,
+        items: emailItems,
       });
       
       // Log to database
@@ -618,7 +635,7 @@ export default function Billing() {
         totalSales,
         totalDue,
         itemCount,
-        recipientEmail: "chevee.kid@gmail.com"
+        recipientEmail: recipientEmail
       });
       
       console.log("✅ Billing notification sent successfully");
