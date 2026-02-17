@@ -4,6 +4,7 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TopNav from './components/sidebar/sidebar'
+import Breadcrumb from './components/Breadcrumb'
 import Gardenia from './pages/gardenia/gardenia';
 import AddTicketPage from './pages/gardenia/add/gardenia-new';
 import SpareParts from './pages/spare-parts/SpareParts';
@@ -19,6 +20,7 @@ function App() {
     <>
       <div className="bg-gray-50 flex flex-col h-screen">
         <TopNav />
+        <Breadcrumb />
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Page content */}
           <main className="flex-1 overflow-y-auto">

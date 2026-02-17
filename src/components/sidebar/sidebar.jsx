@@ -35,7 +35,7 @@ const TopNav = () => {
     <nav className="w-full bg-white border-b shadow-sm flex items-center px-8 py-2 justify-between sticky top-0 z-50 overflow-visible">
       <div className="flex items-center gap-4">
         <img className="h-12 w-auto" src={logo} alt="Logo" />
-        <span className="font-bold text-lg text-gray-800">Ervy Brokerage</span>
+        {/* <span className="font-bold text-lg text-gray-800">Ervy Brokerage</span> */}
       </div>
       <div className="flex gap-2 items-center overflow-visible">
         <NavLink

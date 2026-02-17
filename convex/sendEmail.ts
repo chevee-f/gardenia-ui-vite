@@ -66,9 +66,11 @@ export const sendCykrisBillingEmail = action({
             
             return `
               <div style="margin-top: ${pageIndex === 0 ? '20px' : '40px'}; page-break-inside: avoid;">
+                ${totalPages > 1 ? `
                 <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #111827;">
                   Page ${pageIndex + 1} of ${totalPages}
                 </h3>
+                ` : ''}
                 <div style="overflow-x: auto;">
                   <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
@@ -145,6 +147,7 @@ export const sendCykrisBillingEmail = action({
                     </tbody>
                   </table>
                 </div>
+                ${totalPages > 1 ? `
                 <div style="background-color: #f9fafb; padding: 12px; margin-top: 12px; border-radius: 4px; border: 1px solid #e5e7eb;">
                   <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
                     <span>Page ${pageIndex + 1} Total Sales (DV):</span>
@@ -155,6 +158,7 @@ export const sendCykrisBillingEmail = action({
                     <span>₱${pageTotalCharges.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
+                ` : ''}
               </div>
             `;
           }).join("")
@@ -169,7 +173,6 @@ export const sendCykrisBillingEmail = action({
           </h2>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 10px 0;"><strong>Type:</strong> ${args.printType}</p>
             <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
             <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -280,9 +283,11 @@ export const sendSparePartsBillingEmail = action({
             
             return `
               <div style="margin-top: ${pageIndex === 0 ? '20px' : '40px'}; page-break-inside: avoid;">
+                ${totalPages > 1 ? `
                 <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #111827;">
                   Page ${pageIndex + 1} of ${totalPages}
                 </h3>
+                ` : ''}
                 <div style="overflow-x: auto;">
                   <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
@@ -345,6 +350,7 @@ export const sendSparePartsBillingEmail = action({
                     </tbody>
                   </table>
                 </div>
+                ${totalPages > 1 ? `
                 <div style="background-color: #f9fafb; padding: 12px; margin-top: 12px; border-radius: 4px; border: 1px solid #e5e7eb;">
                   <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
                     <span>Page ${pageIndex + 1} Total Sales (DV):</span>
@@ -355,6 +361,7 @@ export const sendSparePartsBillingEmail = action({
                     <span>₱${pageTotalCharges.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
+                ` : ''}
               </div>
             `;
           }).join("")
@@ -369,7 +376,6 @@ export const sendSparePartsBillingEmail = action({
           </h2>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 10px 0;"><strong>Type:</strong> ${args.printType}</p>
             <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
             <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -556,7 +562,6 @@ export const sendBillingEmail = action({
           </h2>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 10px 0;"><strong>Type:</strong> ${args.printType}</p>
             <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
             <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>

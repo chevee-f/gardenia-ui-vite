@@ -559,14 +559,27 @@ export default function CykrisBillingV2() {
   const filteredBillingStatement = useMemo(() => {
     let filtered = billingStatement;
     
-    // Apply search filter
+    // Apply search filter - search across all table columns
     if (billingSearch.trim()) {
       const s = billingSearch.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.waybillNo?.toLowerCase().includes(s) ||
-        item.destination?.toLowerCase().includes(s) ||
-        item.drNo?.toLowerCase().includes(s)
-      );
+      filtered = filtered.filter(item => {
+        // Search in DR#
+        const drNo = (item.drNo || '').toLowerCase();
+        // Search in Description
+        const description = (item.description || '').toLowerCase();
+        // Search in Quantity
+        const quantity = (item.quantity || '').toString().toLowerCase();
+        // Search in Unit
+        const unit = (item.unit || '').toLowerCase();
+        // Search in Declared Amount (as number string)
+        const declaredAmount = item.dv ? parseFloat(item.dv).toString().toLowerCase() : '';
+        
+        return drNo.includes(s) ||
+               description.includes(s) ||
+               quantity.includes(s) ||
+               unit.includes(s) ||
+               declaredAmount.includes(s);
+      });
     }
     
     // Apply DR sort if enabled
@@ -682,14 +695,20 @@ export default function CykrisBillingV2() {
     setSortDRModalOpen(false);
   };
 
-  const getRowColor = (waybillNo, wbDate, drDate) => {
-    const hasWaybill = !!waybillNo;
-    const hasWbDate = !!wbDate;
-    const hasDrDate = !!drDate;
-    const filled = [hasWaybill, hasWbDate, hasDrDate].filter(Boolean).length;
-    if (filled === 0) return 'bg-red-100';
-    if (filled < 3) return 'bg-yellow-100';
-    return 'bg-green-100';
+  const getRowColor = (item) => {
+    // Check if all table columns are filled: DR#, Description, Quantity, Unit, Declared Amount
+    const hasDrNo = !!(item.drNo && item.drNo.trim());
+    const hasDescription = !!(item.description && item.description.trim());
+    const hasQuantity = !!(item.quantity && item.quantity.toString().trim());
+    const hasUnit = !!(item.unit && item.unit.trim());
+    const hasDeclaredAmount = !!(item.dv && parseFloat(item.dv) > 0);
+    
+    const filled = [hasDrNo, hasDescription, hasQuantity, hasUnit, hasDeclaredAmount].filter(Boolean).length;
+    const total = 5;
+    
+    if (filled === 0) return 'bg-red-100'; // All empty = RED
+    if (filled < total) return 'bg-yellow-100'; // One or more empty = YELLOW
+    return 'bg-green-100'; // All filled = GREEN
   };
 
   const totalItems = filteredBillingStatement.length;
@@ -1792,7 +1811,7 @@ export default function CykrisBillingV2() {
         {/* Billing Statement Search */}
         <div className="flex items-center mb-4 relative">
           <input
-            placeholder="Search billing items by waybill, destination, DR number, or date..."
+            placeholder="Search by DR#, Description, Quantity, Unit, or Declared Amount..."
             value={billingSearch}
             onChange={(e) => setBillingSearch(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
@@ -1861,7 +1880,7 @@ export default function CykrisBillingV2() {
                 filteredBillingStatement.map((item, idx) => (
                   <tr
                     key={item.drId}
-                    className={`${getRowColor(item.waybillNo, item.wbDate, item.drDate)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
+                    className={`${getRowColor(item)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
                   >
                     <td className="px-3 py-3 text-sm">
                       {item.drNo || '-'}
