@@ -649,14 +649,18 @@ export default function Billing() {
         await updatePrintEmailSent({ printId: latestPrintId });
         setLatestPrintId(null);
       } else {
-        // Legacy: Log to database (for backward compatibility)
-        await recordBillingPrint({
+        // Create a new print record and mark it as email sent immediately
+        const result = await recordPrint({
           printType,
           totalSales,
           totalDue,
           itemCount,
           recipientEmail: recipientEmail
         });
+        // Immediately mark it as email sent
+        if (result.id) {
+          await updatePrintEmailSent({ printId: result.id });
+        }
       }
       
       console.log("✅ Billing notification sent successfully");
