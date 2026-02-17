@@ -10,5 +10,11 @@ export default defineConfig({
   ],
   build: {
     chunkSizeWarningLimit: 1000, // Allow up to 1000 KB per chunk before warning
+    commonjsOptions: {
+      include: [/recharts/, /node_modules/],
+    },
+  },
+  optimizeDeps: {
+    include: ['recharts'],
   },
 })
