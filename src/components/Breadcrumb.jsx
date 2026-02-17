@@ -21,6 +21,13 @@ const Breadcrumb = () => {
       ];
     }
     
+    if (path === '/spare-parts/dashboard') {
+      return [
+        { label: 'Spare Parts', path: '/spare-parts' },
+        { label: 'Dashboard', path: '/spare-parts/dashboard', isActive: true }
+      ];
+    }
+    
     if (path === '/billing') {
       return [
         { label: 'Spare Parts', path: '/spare-parts' },

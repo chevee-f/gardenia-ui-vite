@@ -9,6 +9,7 @@ import Gardenia from './pages/gardenia/gardenia';
 import AddTicketPage from './pages/gardenia/add/gardenia-new';
 import SpareParts from './pages/spare-parts/SpareParts';
 import Billing from './pages/spare-parts/Billing';
+import Dashboard from './pages/spare-parts/Dashboard';
 import Cykris from './pages/cykris/Cykris';
 import CykrisBilling from './pages/cykris/CykrisBilling';
 import CykrisBillingV2 from './pages/cykris/CykrisBillingV2';
@@ -30,6 +31,7 @@ function App() {
               
               <Route path='/gardenia/new' element={<AddTicketPage />} />
               <Route path='/spare-parts' element={<SpareParts />} />
+              <Route path='/spare-parts/dashboard' element={<Dashboard />} />
               <Route path='/billing' element={<Billing />} />
               <Route path='/cykris' element={<Cykris />} />
               <Route path='/cykris-billing' element={<CykrisBillingV2 />} />

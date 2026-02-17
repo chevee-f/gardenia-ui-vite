@@ -96,4 +96,92 @@ export const getBillingPrintHistory = query({
   }
 });
 
+// Dashboard queries for Spare Parts
+export const getDashboardStats = query({
+  handler: async (ctx) => {
+    // Get all billing prints
+    const allPrints = await ctx.db.query("billing_prints")
+      .order("desc")
+      .collect();
+    
+    // Get all DRs
+    const allDrs = await ctx.db.query("dr")
+      .order("desc")
+      .collect();
+    
+    // Helper function to get start of day (midnight)
+    const getStartOfDay = (timestamp) => {
+      const date = new Date(timestamp);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime();
+    };
+    
+    // Helper function to get start of week (Monday)
+    const getStartOfWeek = (timestamp) => {
+      const date = new Date(timestamp);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+      const monday = new Date(date.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return monday.getTime();
+    };
+    
+    // Last billing statement date
+    const lastBillingDate = allPrints.length > 0 
+      ? allPrints[0].printDate 
+      : null;
+    
+    // Group billing statements by day
+    const billingByDay = {};
+    allPrints.forEach(print => {
+      const dayKey = getStartOfDay(print.printDate).toString();
+      billingByDay[dayKey] = (billingByDay[dayKey] || 0) + 1;
+    });
+    
+    // Group billing statements by week
+    const billingByWeek = {};
+    allPrints.forEach(print => {
+      const weekKey = getStartOfWeek(print.printDate).toString();
+      billingByWeek[weekKey] = (billingByWeek[weekKey] || 0) + 1;
+    });
+    
+    // Group DRs by day (using _creationTime)
+    const drsByDay = {};
+    allDrs.forEach(dr => {
+      const dayKey = getStartOfDay(dr._creationTime).toString();
+      drsByDay[dayKey] = (drsByDay[dayKey] || 0) + 1;
+    });
+    
+    // Group DRs by week
+    const drsByWeek = {};
+    allDrs.forEach(dr => {
+      const weekKey = getStartOfWeek(dr._creationTime).toString();
+      drsByWeek[weekKey] = (drsByWeek[weekKey] || 0) + 1;
+    });
+    
+    // Group email reports by day (where emailSent = true)
+    const emailReportsByDay = {};
+    allPrints.filter(print => print.emailSent === true).forEach(print => {
+      const dayKey = getStartOfDay(print.printDate).toString();
+      emailReportsByDay[dayKey] = (emailReportsByDay[dayKey] || 0) + 1;
+    });
+    
+    // Group email reports by week
+    const emailReportsByWeek = {};
+    allPrints.filter(print => print.emailSent === true).forEach(print => {
+      const weekKey = getStartOfWeek(print.printDate).toString();
+      emailReportsByWeek[weekKey] = (emailReportsByWeek[weekKey] || 0) + 1;
+    });
+    
+    return {
+      lastBillingDate,
+      billingByDay,
+      billingByWeek,
+      drsByDay,
+      drsByWeek,
+      emailReportsByDay,
+      emailReportsByWeek
+    };
+  }
+});
 

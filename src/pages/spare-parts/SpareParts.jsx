@@ -539,7 +539,6 @@ function SpareParts() {
       handlePrintCustom(idx, typesArr);
     }
   };
-
   const handlePrintAllBox = (idx) => {
     handlePrintViewer(idx, 'all');
   };

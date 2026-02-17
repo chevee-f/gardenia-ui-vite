@@ -10,7 +10,7 @@ const TopNav = () => {
   const cykrisRef = useRef(null);
 
   // Check if current route is under Spare Parts
-  const isSparePartsActive = location.pathname === '/spare-parts' || location.pathname === '/billing';
+  const isSparePartsActive = location.pathname === '/spare-parts' || location.pathname === '/billing' || location.pathname === '/spare-parts/dashboard';
   // Check if current route is under Cykris
   const isCykrisActive = location.pathname === '/cykris' || location.pathname === '/cykris-billing';
 
@@ -73,11 +73,21 @@ const TopNav = () => {
               <NavLink
                 to="/spare-parts"
                 onClick={() => setSparePartsOpen(false)}
+                end
                 className={({ isActive }) =>
                   `block px-4 py-2 text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-100 font-semibold text-gray-900' : 'text-gray-700'}`
                 }
               >
                 Create DR
+              </NavLink>
+              <NavLink
+                to="/spare-parts/dashboard"
+                onClick={() => setSparePartsOpen(false)}
+                className={({ isActive }) =>
+                  `block px-4 py-2 text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-100 font-semibold text-gray-900' : 'text-gray-700'}`
+                }
+              >
+                Dashboard
               </NavLink>
               <NavLink
                 to="/billing"
