@@ -3,6 +3,7 @@ import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect, useRef } from "react";
 import ExcelJS from 'exceljs';
 import rates from './rates.json';
+import { CYKRIS_BILLING_EMAIL } from '../../constants/email';
 
 // Feature flag: Enable waybill storage save for Billing
 // Set to true to enable, false to disable (for testing)
@@ -748,7 +749,7 @@ export default function CykrisBillingV2() {
         totalSales,
         totalDue,
         itemCount,
-        recipientEmail: "chevee.kid@gmail.com",
+        recipientEmail: CYKRIS_BILLING_EMAIL,
         items: emailItems,
       });
       
@@ -763,7 +764,7 @@ export default function CykrisBillingV2() {
           totalSales,
           totalDue,
           itemCount,
-          recipientEmail: "chevee.kid@gmail.com"
+          recipientEmail: CYKRIS_BILLING_EMAIL
         });
       }
       
@@ -795,7 +796,7 @@ export default function CykrisBillingV2() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
-    const recipientEmail = "chevee.kid@gmail.com";
+    const recipientEmail = CYKRIS_BILLING_EMAIL;
     
     try {
       const result = await recordPrint({
@@ -886,7 +887,7 @@ export default function CykrisBillingV2() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
-    const recipientEmail = "chevee.kid@gmail.com";
+    const recipientEmail = CYKRIS_BILLING_EMAIL;
     
     try {
       const result = await recordPrint({

@@ -8,7 +8,7 @@ export const sendCykrisBillingEmail = action({
     totalSales: v.number(),
     totalDue: v.number(),
     itemCount: v.number(),
-    recipientEmail: v.string(),
+    recipientEmail: v.union(v.string(), v.array(v.string())),
     items: v.optional(
       v.array(
         v.object({
@@ -33,7 +33,7 @@ export const sendCykrisBillingEmail = action({
     
     if (!resendApiKey) {
       console.log("Email notification (NO API KEY - logging only):", {
-        to: args.recipientEmail,
+        to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
         type: args.printType,
         totals: args.totalSales,
         itemCount: args.itemCount,
@@ -195,7 +195,7 @@ export const sendCykrisBillingEmail = action({
         },
         body: JSON.stringify({
           from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
-          to: [args.recipientEmail],
+          to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Cykris Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,
         }),
@@ -225,7 +225,7 @@ export const sendSparePartsBillingEmail = action({
     totalSales: v.number(),
     totalDue: v.number(),
     itemCount: v.number(),
-    recipientEmail: v.string(),
+    recipientEmail: v.union(v.string(), v.array(v.string())),
     items: v.optional(
       v.array(
         v.object({
@@ -250,7 +250,7 @@ export const sendSparePartsBillingEmail = action({
     
     if (!resendApiKey) {
       console.log("Email notification (NO API KEY - logging only):", {
-        to: args.recipientEmail,
+        to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
         type: args.printType,
         totals: args.totalSales,
         itemCount: args.itemCount,
@@ -398,7 +398,7 @@ export const sendSparePartsBillingEmail = action({
         },
         body: JSON.stringify({
           from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
-          to: [args.recipientEmail],
+          to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Spare Parts Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,
         }),
@@ -428,7 +428,7 @@ export const sendBillingEmail = action({
     totalSales: v.number(),
     totalDue: v.number(),
     itemCount: v.number(),
-    recipientEmail: v.string(),
+    recipientEmail: v.union(v.string(), v.array(v.string())),
     items: v.optional(
       v.array(
         v.object({
@@ -455,7 +455,7 @@ export const sendBillingEmail = action({
     
     if (!resendApiKey) {
       console.log("Email notification (NO API KEY - logging only):", {
-        to: args.recipientEmail,
+        to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
         type: args.printType,
         totals: args.totalSales,
         itemCount: args.itemCount,
@@ -584,7 +584,7 @@ export const sendBillingEmail = action({
         },
         body: JSON.stringify({
           from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
-          to: [args.recipientEmail],
+          to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,
         }),

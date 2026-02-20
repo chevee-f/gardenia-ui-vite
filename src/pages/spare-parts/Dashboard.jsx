@@ -216,9 +216,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-4">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-gray-900 mb-2">Dashboard</h1>
@@ -260,11 +260,11 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Last Billing Statement Date */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Last Billing Statement</span>
                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +272,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
               </div>
-              <div className="mt-2">
+              <div className="mt-1">
                 <p className="text-2xl font-semibold text-gray-900 leading-tight">
                   {stats.lastBillingDate ? formatDate(stats.lastBillingDate) : 'N/A'}
                 </p>
@@ -282,8 +282,8 @@ const Dashboard = () => {
 
           {/* Billing Statements Count */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">
                   Billing Statements
                 </span>
@@ -293,7 +293,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
               </div>
-              <div className="mt-2">
+              <div className="mt-1">
                 <p className="text-3xl font-semibold text-gray-900">{getRecentCounts.billing}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   {timeframe === 'day' ? 'Today' : timeframe === 'week' ? 'This Week' : 'This Month'}
@@ -304,8 +304,8 @@ const Dashboard = () => {
 
           {/* DRs Created Count */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">DRs Created</span>
                 <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
                   <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,7 +313,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
               </div>
-              <div className="mt-2">
+              <div className="mt-1">
                 <p className="text-3xl font-semibold text-gray-900">{getRecentCounts.drs}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   {timeframe === 'day' ? 'Today' : timeframe === 'week' ? 'This Week' : 'This Month'}
@@ -324,8 +324,8 @@ const Dashboard = () => {
 
           {/* Email Reports Sent Count */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Email Reports</span>
                 <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
                   <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,7 +333,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
               </div>
-              <div className="mt-2">
+              <div className="mt-1">
                 <p className="text-3xl font-semibold text-gray-900">{getRecentCounts.emails}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   {timeframe === 'day' ? 'Today' : timeframe === 'week' ? 'This Week' : 'This Month'}
@@ -344,14 +344,14 @@ const Dashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Trend Line Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
               Trends Over Time
             </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="name" 
@@ -399,12 +399,12 @@ const Dashboard = () => {
           </div>
 
           {/* Comparison Bar Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
               Comparison Chart
             </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="name" 

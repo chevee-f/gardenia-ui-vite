@@ -3,6 +3,7 @@ import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect, useRef } from "react";
 import ExcelJS from 'exceljs';
 import rates from './rates.json';
+import { SPARE_PARTS_BILLING_EMAIL } from '../../constants/email';
 
 // Feature flag: Enable waybill storage save for Billing
 // Set to true to enable, false to disable (for testing)
@@ -615,7 +616,7 @@ export default function Billing() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
-    const recipientEmail = "chevee.kid@gmail.com";
+    const recipientEmail = SPARE_PARTS_BILLING_EMAIL;
     // Prepare detailed items (match fields visible in print table)
     const emailItems = filteredBillingStatement.map((item) => ({
       // Spare-parts print table columns
@@ -691,7 +692,7 @@ export default function Billing() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
-    const recipientEmail = "chevee.kid@gmail.com";
+    const recipientEmail = SPARE_PARTS_BILLING_EMAIL;
     
     try {
       const result = await recordPrint({
@@ -782,7 +783,7 @@ export default function Billing() {
     const totalSales = totalDV;
     const totalDue = totalCharges;
     const itemCount = filteredBillingStatement.length;
-    const recipientEmail = "chevee.kid@gmail.com";
+    const recipientEmail = SPARE_PARTS_BILLING_EMAIL;
     
     try {
       const result = await recordPrint({
