@@ -194,7 +194,7 @@ export const sendCykrisBillingEmail = action({
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
+          from: fromEmail,
           to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Cykris Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,
@@ -245,8 +245,9 @@ export const sendSparePartsBillingEmail = action({
     ),
   },
   handler: async (ctx, args) => {
-    // Get Resend API key from environment
+    // Get Resend API key and from address from environment
     const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "Billing System <onboarding@resend.dev>";
     
     if (!resendApiKey) {
       console.log("Email notification (NO API KEY - logging only):", {
@@ -397,7 +398,7 @@ export const sendSparePartsBillingEmail = action({
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
+          from: fromEmail,
           to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Spare Parts Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,
@@ -450,8 +451,9 @@ export const sendBillingEmail = action({
     ),
   },
   handler: async (ctx, args) => {
-    // Get Resend API key from environment
+    // Get Resend API key and from address from environment
     const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "Billing System <onboarding@resend.dev>";
     
     if (!resendApiKey) {
       console.log("Email notification (NO API KEY - logging only):", {
@@ -583,7 +585,7 @@ export const sendBillingEmail = action({
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "Billing System <onboarding@resend.dev>", // Change this to your verified domain
+          from: fromEmail,
           to: Array.isArray(args.recipientEmail) ? args.recipientEmail : [args.recipientEmail],
           subject: `Billing Statement ${args.printType} - ${new Date().toLocaleDateString()}`,
           html: emailHtml,

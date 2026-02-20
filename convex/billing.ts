@@ -8,16 +8,21 @@ export const recordPrint = mutation({
     totalSales: v.number(),
     totalDue: v.number(),
     itemCount: v.number(),
-    recipientEmail: v.string()
+    recipientEmail: v.union(v.string(), v.array(v.string()))
   },
   handler: async (ctx, args) => {
+    // Convert array to comma-separated string for storage
+    const recipientEmailStr = Array.isArray(args.recipientEmail) 
+      ? args.recipientEmail.join(", ") 
+      : args.recipientEmail;
+    
     const printRecord = {
       printDate: Date.now(),
       printType: args.printType,
       totalSales: args.totalSales,
       totalDue: args.totalDue,
       itemCount: args.itemCount,
-      recipientEmail: args.recipientEmail,
+      recipientEmail: recipientEmailStr,
       status: 'printed',
       emailSent: false
     };
@@ -69,16 +74,21 @@ export const recordBillingPrint = mutation({
     totalSales: v.number(),
     totalDue: v.number(),
     itemCount: v.number(),
-    recipientEmail: v.string()
+    recipientEmail: v.union(v.string(), v.array(v.string()))
   },
   handler: async (ctx, args) => {
+    // Convert array to comma-separated string for storage
+    const recipientEmailStr = Array.isArray(args.recipientEmail) 
+      ? args.recipientEmail.join(", ") 
+      : args.recipientEmail;
+    
     const printRecord = {
       printDate: Date.now(),
       printType: args.printType,
       totalSales: args.totalSales,
       totalDue: args.totalDue,
       itemCount: args.itemCount,
-      recipientEmail: args.recipientEmail,
+      recipientEmail: recipientEmailStr,
       status: 'sent',
       emailSent: true
     };
