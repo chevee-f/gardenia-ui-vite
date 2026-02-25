@@ -73,26 +73,26 @@ export const sendCykrisBillingEmail = action({
                   Page ${pageIndex + 1} of ${totalPages}
                 </h3>
                 ` : ''}
-                <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
-                      <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR#</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Destination</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Description</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Unit</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Amount</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Waybill No</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">WB Date</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR Date</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">%</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Charges</th>
+                      <tr style="background-color: #f3f4f6;">
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">DR#</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Destination</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Description</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Qty</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Unit</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Amount</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Waybill No</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">WB Date</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">DR Date</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">%</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Charges</th>
                       </tr>
                     </thead>
                     <tbody>
                       ${pageItems
-                        .map((item, idx) => {
+                        .map((item) => {
                           const amount =
                             typeof item.amount === "number"
                               ? item.amount
@@ -107,15 +107,14 @@ export const sendCykrisBillingEmail = action({
                             typeof item.quantity === "number"
                               ? item.quantity.toString()
                               : item.quantity ?? "";
-                          const rowBg = idx % 2 === 0 ? "#ffffff" : "#f9fafb";
                           return `
-                            <tr style="background-color: ${rowBg};">
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; font-weight: 500;">${item.drNo ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.destination ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.description ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 500;">${qty}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.unit ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                            <tr>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drNo ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.destination ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.description ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">${qty}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.unit ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                                 ${
                                   amount !== undefined
                                     ? "₱" +
@@ -126,13 +125,13 @@ export const sendCykrisBillingEmail = action({
                                     : ""
                                 }
                               </td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.waybillNo ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.wbDate ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.drDate ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 500;">${
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.waybillNo ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.wbDate ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drDate ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">${
                                 percent !== undefined ? percent.toString() : ""
                               }</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                                 ${
                                   charges !== undefined
                                     ? "₱" +
@@ -170,89 +169,24 @@ export const sendCykrisBillingEmail = action({
     // Send email via Brevo API
     try {
       const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fa; padding: 40px 20px;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px 40px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px;">
-                        📋 Cykris Billing Statement
-                      </h1>
-                      <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-                        ${args.printType}
-                      </p>
-                    </td>
-                  </tr>
-                  
-                  <!-- Summary Cards -->
-                  <tr>
-                    <td style="padding: 32px 40px 24px 40px;">
-                      <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td width="50%" style="padding-right: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #667eea;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Items</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">${args.itemCount}</div>
-                            </div>
-                          </td>
-                          <td width="50%" style="padding-left: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #10b981;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Amount Due</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Sales (DV)</div>
-                              <div style="color: #111827; font-size: 32px; font-weight: 700;">₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 500; margin-bottom: 4px;">Print Time</div>
-                              <div style="color: #111827; font-size: 14px; font-weight: 500;">${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  
-                  <!-- Billing Items Table -->
-                  <tr>
-                    <td style="padding: 0 40px 32px 40px;">
-                      ${itemsTableHtml}
-                    </td>
-                  </tr>
-                  
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f9fafb; padding: 24px 40px; border-top: 1px solid #e5e7eb; text-align: center;">
-                      <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
-                        This is an automatic notification from the <strong>Cykris Billing System</strong>.<br>
-                        <span style="color: #9ca3af; font-size: 12px;">Generated on ${new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</span>
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-        </html>
+        <div style="font-family: Arial, sans-serif; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            📋 Cykris Billing Statement Notification
+          </h2>
+          
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
+            <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Print Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p>
+          </div>
+          
+          ${itemsTableHtml}
+          
+          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            This is an automatic notification from the Cykris Billing System.
+          </p>
+        </div>
       `;
       
       // Convert recipient emails to Brevo format (array of objects)
@@ -368,38 +302,37 @@ export const sendSparePartsBillingEmail = action({
                   Page ${pageIndex + 1} of ${totalPages}
                 </h3>
                 ` : ''}
-                <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
-                      <tr style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Waybill No</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">WB Date</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Destination</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR#</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR Date</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Amount (DV)</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">%</th>
-                        <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Charges</th>
+                      <tr style="background-color: #f3f4f6;">
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Waybill No</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">WB Date</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Destination</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">DR#</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">DR Date</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Amount (DV)</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">%</th>
+                        <th style="border: 1px solid #d1d5db; padding: 4px;">Charges</th>
                       </tr>
                     </thead>
                     <tbody>
                       ${pageItems
-                        .map((item, idx) => {
+                        .map((item) => {
                           const amount =
                             typeof item.amount === "number" ? item.amount : undefined;
                           const percent =
                             typeof item.percent === "number" ? item.percent : undefined;
                           const charges =
                             typeof item.charges === "number" ? item.charges : undefined;
-                          const rowBg = idx % 2 === 0 ? "#ffffff" : "#f9fafb";
                           return `
-                            <tr style="background-color: ${rowBg};">
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; font-weight: 500;">${item.waybillNo ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.wbDate ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.destination ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; font-weight: 500;">${item.drNo ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.drDate ?? ""}</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                            <tr>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.waybillNo ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.wbDate ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.destination ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drNo ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drDate ?? ""}</td>
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                                 ${
                                   amount !== undefined
                                     ? "₱" +
@@ -410,10 +343,10 @@ export const sendSparePartsBillingEmail = action({
                                     : ""
                                 }
                               </td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 500;">${
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">${
                                 percent !== undefined ? percent.toString() : ""
                               }</td>
-                              <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                              <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                                 ${
                                   charges !== undefined
                                     ? "₱" +
@@ -451,89 +384,24 @@ export const sendSparePartsBillingEmail = action({
     // Send email via Brevo API
     try {
       const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fa; padding: 40px 20px;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 40px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px;">
-                        📋 Spare Parts Billing Statement
-                      </h1>
-                      <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-                        ${args.printType}
-                      </p>
-                    </td>
-                  </tr>
-                  
-                  <!-- Summary Cards -->
-                  <tr>
-                    <td style="padding: 32px 40px 24px 40px;">
-                      <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td width="50%" style="padding-right: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #10b981;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Items</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">${args.itemCount}</div>
-                            </div>
-                          </td>
-                          <td width="50%" style="padding-left: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Amount Due</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Sales (DV)</div>
-                              <div style="color: #111827; font-size: 32px; font-weight: 700;">₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 500; margin-bottom: 4px;">Print Time</div>
-                              <div style="color: #111827; font-size: 14px; font-weight: 500;">${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  
-                  <!-- Billing Items Table -->
-                  <tr>
-                    <td style="padding: 0 40px 32px 40px;">
-                      ${itemsTableHtml}
-                    </td>
-                  </tr>
-                  
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f9fafb; padding: 24px 40px; border-top: 1px solid #e5e7eb; text-align: center;">
-                      <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
-                        This is an automatic notification from the <strong>Spare Parts Billing System</strong>.<br>
-                        <span style="color: #9ca3af; font-size: 12px;">Generated on ${new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</span>
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-        </html>
+        <div style="font-family: Arial, sans-serif; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            📋 Spare Parts Billing Statement Notification
+          </h2>
+          
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
+            <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Print Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p>
+          </div>
+          
+          ${itemsTableHtml}
+          
+          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            This is an automatic notification from the Spare Parts Billing System.
+          </p>
+        </div>
       `;
       
       // Convert recipient emails to Brevo format (array of objects)
@@ -644,30 +512,30 @@ export const sendBillingEmail = action({
       args.items && args.items.length
         ? `
           <div style="margin-top: 20px;">
-            <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #111827; font-weight: 600;">
+            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #111827;">
               Billing Items (first ${Math.min(args.items.length, 100)} shown)
             </h3>
-            <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #ffffff;">
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                 <thead>
-                  <tr style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR#</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Destination</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Description</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Unit</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Amount</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Waybill No</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">WB Date</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">DR Date</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">%</th>
-                    <th style="padding: 12px 10px; color: #ffffff; font-weight: 600; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Charges</th>
+                  <tr style="background-color: #f3f4f6;">
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">DR#</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Destination</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Description</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Qty</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Unit</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Amount</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Waybill No</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">WB Date</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">DR Date</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">%</th>
+                    <th style="border: 1px solid #d1d5db; padding: 4px;">Charges</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${(args.items ?? [])
                     .slice(0, 100)
-                    .map((item, idx) => {
+                    .map((item) => {
                       const amount =
                         typeof item.amount === "number"
                           ? item.amount
@@ -682,15 +550,14 @@ export const sendBillingEmail = action({
                         typeof item.quantity === "number"
                           ? item.quantity.toString()
                           : item.quantity ?? "";
-                      const rowBg = idx % 2 === 0 ? "#ffffff" : "#f9fafb";
                       return `
-                        <tr style="background-color: ${rowBg};">
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; font-weight: 500;">${item.drNo ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.destination ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.description ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 500;">${qty}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.unit ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                        <tr>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drNo ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.destination ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.description ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">${qty}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.unit ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                             ${
                               amount !== undefined
                                 ? "₱" +
@@ -701,13 +568,13 @@ export const sendBillingEmail = action({
                                 : ""
                             }
                           </td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.waybillNo ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.wbDate ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827;">${item.drDate ?? ""}</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 500;">${
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.waybillNo ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.wbDate ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px;">${item.drDate ?? ""}</td>
+                          <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">${
                             percent !== undefined ? percent.toString() : ""
                           }</td>
-                          <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #111827; text-align: right; font-weight: 600;">
+                          <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: right;">
                             ${
                               charges !== undefined
                                 ? "₱" +
@@ -732,89 +599,24 @@ export const sendBillingEmail = action({
     // Send email via Brevo API
     try {
       const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f7fa; padding: 40px 20px;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px;">
-                        📋 Billing Statement
-                      </h1>
-                      <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-                        ${args.printType}
-                      </p>
-                    </td>
-                  </tr>
-                  
-                  <!-- Summary Cards -->
-                  <tr>
-                    <td style="padding: 32px 40px 24px 40px;">
-                      <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td width="50%" style="padding-right: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Items</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">${args.itemCount}</div>
-                            </div>
-                          </td>
-                          <td width="50%" style="padding-left: 12px; vertical-align: top;">
-                            <div style="background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #10b981;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Amount Due</div>
-                              <div style="color: #111827; font-size: 28px; font-weight: 700;">₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Total Sales (DV)</div>
-                              <div style="color: #111827; font-size: 32px; font-weight: 700;">₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-top: 16px;">
-                            <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb;">
-                              <div style="color: #6b7280; font-size: 12px; font-weight: 500; margin-bottom: 4px;">Print Time</div>
-                              <div style="color: #111827; font-size: 14px; font-weight: 500;">${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</div>
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  
-                  <!-- Billing Items Table -->
-                  <tr>
-                    <td style="padding: 0 40px 32px 40px;">
-                      ${itemsTableHtml}
-                    </td>
-                  </tr>
-                  
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f9fafb; padding: 24px 40px; border-top: 1px solid #e5e7eb; text-align: center;">
-                      <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
-                        This is an automatic notification from the <strong>Billing System</strong>.<br>
-                        <span style="color: #9ca3af; font-size: 12px;">Generated on ${new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</span>
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-        </html>
+        <div style="font-family: Arial, sans-serif; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            📋 Billing Statement Notification
+          </h2>
+          
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 10px 0;"><strong>Total Items:</strong> ${args.itemCount}</p>
+            <p style="margin: 10px 0;"><strong>Total Sales (DV):</strong> ₱${args.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Total Amount Due:</strong> ₱${args.totalDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style="margin: 10px 0;"><strong>Print Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p>
+          </div>
+          
+          ${itemsTableHtml}
+          
+          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            This is an automatic notification from the Billing System.
+          </p>
+        </div>
       `;
       
       // Convert recipient emails to Brevo format (array of objects)
