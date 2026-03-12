@@ -155,12 +155,62 @@ export default function Billing() {
 
   // Removed expensive sorting useEffect - was causing lag with 40+ items
 
+  const isQuotaExceededError = (err) => {
+    if (!err) return false;
+    const name = err?.name || err?.constructor?.name;
+    return (
+      name === 'QuotaExceededError' ||
+      name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      err?.code === 22 ||
+      err?.number === -2147024882
+    );
+  };
+
+  const safeLocalStorageSet = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (err) {
+      if (isQuotaExceededError(err)) {
+        console.warn(`Storage quota exceeded while saving "${key}".`, err);
+        return false;
+      }
+      console.error(`Error saving "${key}" to localStorage:`, err);
+      return false;
+    }
+  };
+
+  const compactStatementSnapshot = (statement) => {
+    if (!Array.isArray(statement)) return [];
+    return statement.map((item) => ({
+      drId: item.drId,
+      waybillNo: item.waybillNo,
+      wbDate: item.wbDate,
+      destination: item.destination,
+      drNo: item.drNo,
+      drDate: item.drDate,
+      dv: item.dv,
+      percent: item.percent,
+      charges: item.charges,
+    }));
+  };
+
+  const pruneSavedStatements = (statements, keepMax = 5) => {
+    if (!statements || typeof statements !== 'object') return {};
+    const entries = Object.entries(statements);
+    entries.sort((a, b) => {
+      const ta = Date.parse(a?.[1]?.timestamp || '') || 0;
+      const tb = Date.parse(b?.[1]?.timestamp || '') || 0;
+      return tb - ta;
+    });
+    return Object.fromEntries(entries.slice(0, keepMax));
+  };
+
   // Auto-save billing statement and DR list to localStorage whenever they change
   useEffect(() => {
     if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
       const saveData = {
-        billingStatement,
-        drList,
+        billingStatement: compactStatementSnapshot(billingStatement),
         timestamp: new Date().toISOString(),
         version: '1.0'
       };
@@ -171,8 +221,21 @@ export default function Billing() {
           ...prevSavedStatements,
           [currentStatementName]: saveData
         };
-        
-        localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+
+        const serialized = JSON.stringify(updatedSavedStatements);
+        if (!safeLocalStorageSet("savedBillingStatements", serialized)) {
+          // Try pruning older statements first.
+          const pruned = pruneSavedStatements(updatedSavedStatements, 3);
+          const prunedSerialized = JSON.stringify(pruned);
+          if (safeLocalStorageSet("savedBillingStatements", prunedSerialized)) {
+            return pruned;
+          }
+
+          // Last resort: keep only the current statement.
+          const minimal = { [currentStatementName]: saveData };
+          safeLocalStorageSet("savedBillingStatements", JSON.stringify(minimal));
+          return minimal;
+        }
         // console.log(`Billing statement "${currentStatementName}" auto-saved:`, billingStatement.length, 'items');
         
         return updatedSavedStatements;
@@ -185,14 +248,13 @@ export default function Billing() {
     const backupInterval = setInterval(() => {
       if (billingStatement.length > 0 && currentStatementName !== 'Untitled') {
         const backupData = {
-          billingStatement,
-          drList,
+          billingStatement: compactStatementSnapshot(billingStatement),
           timestamp: new Date().toISOString(),
           version: '1.0',
           isBackup: true,
           statementName: currentStatementName
         };
-        localStorage.setItem("billingStatement_backup", JSON.stringify(backupData));
+        safeLocalStorageSet("billingStatement_backup", JSON.stringify(backupData));
         console.log(`Backup created for "${currentStatementName}" at:`, new Date().toLocaleTimeString());
       }
     }, 5 * 60 * 1000); // 5 minutes
@@ -416,8 +478,7 @@ export default function Billing() {
     }
 
     const statementData = {
-      billingStatement,
-      drList,
+      billingStatement: compactStatementSnapshot(billingStatement),
       timestamp: new Date().toISOString(),
       version: '1.0'
     };
@@ -431,7 +492,14 @@ export default function Billing() {
     setCurrentStatementName(statementName);
     
     // Save to localStorage
-    localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+    const serialized = JSON.stringify(updatedSavedStatements);
+    if (!safeLocalStorageSet("savedBillingStatements", serialized)) {
+      const pruned = pruneSavedStatements(updatedSavedStatements, 3);
+      if (!safeLocalStorageSet("savedBillingStatements", JSON.stringify(pruned))) {
+        safeLocalStorageSet("savedBillingStatements", JSON.stringify({ [statementName]: statementData }));
+      }
+      setSavedStatements(pruned);
+    }
     localStorage.setItem("currentStatementName", statementName);
     
     console.log(`Billing statement "${statementName}" saved with ${billingStatement.length} items`);
@@ -456,7 +524,7 @@ export default function Billing() {
       delete updatedSavedStatements[statementName];
       
       setSavedStatements(updatedSavedStatements);
-      localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+      safeLocalStorageSet("savedBillingStatements", JSON.stringify(updatedSavedStatements));
       
       // If we're deleting the current statement, clear it
       if (currentStatementName === statementName) {
@@ -496,8 +564,7 @@ export default function Billing() {
     
     // Save current statement
     const statementData = {
-      billingStatement,
-      drList,
+      billingStatement: compactStatementSnapshot(billingStatement),
       timestamp: new Date().toISOString(),
       version: '1.0'
     };
@@ -510,7 +577,14 @@ export default function Billing() {
     setSavedStatements(updatedSavedStatements);
     
     // Save to localStorage
-    localStorage.setItem("savedBillingStatements", JSON.stringify(updatedSavedStatements));
+    const serialized = JSON.stringify(updatedSavedStatements);
+    if (!safeLocalStorageSet("savedBillingStatements", serialized)) {
+      const pruned = pruneSavedStatements(updatedSavedStatements, 3);
+      if (!safeLocalStorageSet("savedBillingStatements", JSON.stringify(pruned))) {
+        safeLocalStorageSet("savedBillingStatements", JSON.stringify({ [statementName]: statementData }));
+      }
+      setSavedStatements(pruned);
+    }
     
     // Clear and start new
     clearAndStartNew();
