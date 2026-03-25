@@ -6,13 +6,17 @@ const TopNav = () => {
   const location = useLocation();
   const [sparePartsOpen, setSparePartsOpen] = useState(false);
   const [cykrisOpen, setCykrisOpen] = useState(false);
+  const [motortradeOpen, setMotortradeOpen] = useState(false);
   const sparePartsRef = useRef(null);
   const cykrisRef = useRef(null);
+  const motortradeRef = useRef(null);
 
   // Check if current route is under Spare Parts
   const isSparePartsActive = location.pathname === '/spare-parts' || location.pathname === '/billing' || location.pathname === '/spare-parts/dashboard';
   // Check if current route is under Cykris
   const isCykrisActive = location.pathname === '/cykris' || location.pathname === '/cykris-billing';
+  // Check if current route is under Motortrade
+  const isMotortradeActive = location.pathname === '/motortrade' || location.pathname === '/motortrade-billing';
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -22,6 +26,9 @@ const TopNav = () => {
       }
       if (cykrisRef.current && !cykrisRef.current.contains(event.target)) {
         setCykrisOpen(false);
+      }
+      if (motortradeRef.current && !motortradeRef.current.contains(event.target)) {
+        setMotortradeOpen(false);
       }
     };
 
@@ -108,6 +115,7 @@ const TopNav = () => {
             onClick={() => {
               setCykrisOpen(!cykrisOpen);
               setSparePartsOpen(false);
+              setMotortradeOpen(false);
             }}
             className={`py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition flex items-center gap-1 ${
               isCykrisActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'
@@ -142,6 +150,43 @@ const TopNav = () => {
                 }
               >
                 Billing
+              </NavLink>
+            </div>
+          )}
+        </div>
+
+        {/* Motortrade Dropdown */}
+        <div className="relative overflow-visible" ref={motortradeRef}>
+          <button
+            onClick={() => {
+              setMotortradeOpen(!motortradeOpen);
+              setSparePartsOpen(false);
+              setCykrisOpen(false);
+            }}
+            className={`py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition flex items-center gap-1 ${
+              isMotortradeActive ? 'bg-gray-200 font-semibold' : 'text-gray-700'
+            }`}
+          >
+            Motortrade
+            <svg
+              className={`w-4 h-4 transition-transform ${motortradeOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {motortradeOpen && (
+            <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50" style={{ position: 'absolute' }}>
+              <NavLink
+                to="/motortrade"
+                onClick={() => setMotortradeOpen(false)}
+                className={({ isActive }) =>
+                  `block px-4 py-2 text-sm hover:bg-gray-100 ${isActive ? 'bg-gray-100 font-semibold text-gray-900' : 'text-gray-700'}`
+                }
+              >
+                Create DR
               </NavLink>
             </div>
           )}

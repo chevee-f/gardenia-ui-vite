@@ -13,6 +13,7 @@ import Dashboard from './pages/spare-parts/Dashboard';
 import Cykris from './pages/cykris/Cykris';
 import CykrisBilling from './pages/cykris/CykrisBilling';
 import CykrisBillingV2 from './pages/cykris/CykrisBillingV2';
+import MotortradePage from './pages/motortrade/MotortradePage';
 
 function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -34,6 +35,7 @@ function App() {
               <Route path='/spare-parts/dashboard' element={<Dashboard />} />
               <Route path='/billing' element={<Billing />} />
               <Route path='/cykris' element={<Cykris />} />
+              <Route path='/motortrade' element={<MotortradePage />} />
               <Route path='/cykris-billing' element={<CykrisBillingV2 />} />
               {/* other routes */}
             </Routes>
