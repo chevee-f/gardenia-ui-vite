@@ -46,5 +46,24 @@ export default defineSchema({
     recipientEmail: v.string(),
     status: v.string(),
     emailSent: v.optional(v.boolean())
-  })
+  }),
+
+  // Snapshots of localStorage-saved billing statements uploaded from the UI.
+  saved_billing_statements_uploads: defineTable({
+    uploadedAt: v.number(),
+    statementCount: v.number(),
+    currentStatementName: v.optional(v.string()),
+    // Stored as JSON string to avoid strict schema coupling to UI shape.
+    data: v.string(),
+  }),
+
+  // One row per saved statement name (mirrors localStorage savedBillingStatements keys).
+  saved_billing_statements: defineTable({
+    statementName: v.string(),
+    updatedAt: v.number(),
+    // Stored as JSON string to avoid tight coupling to UI shape.
+    data: v.string(),
+    // Optional metadata for debugging / UI convenience.
+    source: v.optional(v.string()), // e.g. "manual-save", "backup-button"
+  }).index("by_statementName", ["statementName"]),
 });

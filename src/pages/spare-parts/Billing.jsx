@@ -74,12 +74,18 @@ export default function Billing() {
   const recordBillingPrint = useMutation(api.billing.recordBillingPrint);
   const recordPrint = useMutation(api.billing.recordPrint);
   const updatePrintEmailSent = useMutation(api.billing.updatePrintEmailSent);
+  const upsertSavedBillingStatement = useMutation(api.billing.upsertSavedBillingStatement);
+  const upsertManySavedBillingStatements = useMutation(api.billing.upsertManySavedBillingStatements);
+  const convexSavedBillingStatements = useQuery(api.billing.listSavedBillingStatements) || [];
   const unsentEmailCount = useQuery(api.billing.getUnsentEmailCount) || 0;
   
   // Email prompt modal state
   const [emailPromptOpen, setEmailPromptOpen] = useState(false);
   const [latestPrintId, setLatestPrintId] = useState(null);
   const [pendingPrintType, setPendingPrintType] = useState(null);
+
+  const [isUploadingSavedStatements, setIsUploadingSavedStatements] = useState(false);
+  const [isRecoveringSavedStatements, setIsRecoveringSavedStatements] = useState(false);
 
   // DnD handlers for modal list
   const handleDragStart = (idx) => setDragIndex(idx);
@@ -471,6 +477,117 @@ export default function Billing() {
     }
   };
 
+  const upsertOneSavedStatementToConvex = (statementName, statementData, source) => {
+    try {
+      void upsertSavedBillingStatement({
+        statementName,
+        data: JSON.stringify(statementData ?? {}),
+        source,
+      })
+        .then((res) => {
+          console.log('Upserted saved billing statement to Convex:', res);
+        })
+        .catch((err) => {
+          console.error('Failed upserting saved billing statement to Convex:', err);
+        });
+    } catch (err) {
+      console.error('Failed serializing saved billing statement for Convex upsert:', err);
+    }
+  };
+
+  const uploadAllSavedStatementsToConvex = async () => {
+    setIsUploadingSavedStatements(true);
+    try {
+      const raw = localStorage.getItem("savedBillingStatements");
+      if (!raw) {
+        alert('No saved billing statements found in localStorage.');
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        alert('Saved billing statements in localStorage are corrupted (invalid JSON).');
+        return;
+      }
+
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        alert('Saved billing statements in localStorage are invalid (expected an object).');
+        return;
+      }
+
+      const entries = Object.entries(parsed);
+      const statements = entries.map(([statementName, statementData]) => ({
+        statementName,
+        data: JSON.stringify(statementData ?? {}),
+      }));
+
+      const res = await upsertManySavedBillingStatements({
+        statements,
+        source: 'backup-button',
+      });
+
+      console.log('Upserted savedBillingStatements to Convex:', res);
+      alert(`Backed up ${statements.length} saved billing statement(s) to Convex.`);
+    } catch (err) {
+      console.error('Failed uploading savedBillingStatements to Convex:', err);
+      alert('Failed to upload saved billing statements to Convex. Check console for details.');
+    } finally {
+      setIsUploadingSavedStatements(false);
+    }
+  };
+
+  const recoverSavedStatementsFromConvex = async () => {
+    setIsRecoveringSavedStatements(true);
+    try {
+      if (!Array.isArray(convexSavedBillingStatements) || convexSavedBillingStatements.length === 0) {
+        alert('No saved billing statements found in Convex.');
+        return;
+      }
+
+      const recovered = {};
+      let recoveredCount = 0;
+
+      for (const doc of convexSavedBillingStatements) {
+        const statementName = doc?.statementName;
+        const dataStr = doc?.data;
+        if (!statementName || typeof statementName !== 'string') continue;
+        if (typeof dataStr !== 'string') continue;
+        try {
+          recovered[statementName] = JSON.parse(dataStr);
+          recoveredCount += 1;
+        } catch (e) {
+          console.warn(`Skipping corrupted Convex saved statement "${statementName}" (invalid JSON).`, e);
+        }
+      }
+
+      if (recoveredCount === 0) {
+        alert('Could not recover any saved billing statements (all records were invalid).');
+        return;
+      }
+
+      localStorage.setItem("savedBillingStatements", JSON.stringify(recovered));
+      setSavedStatements(recovered);
+
+      const current = localStorage.getItem("currentStatementName");
+      if (!current) {
+        const firstName = Object.keys(recovered)[0];
+        if (firstName) {
+          localStorage.setItem("currentStatementName", firstName);
+          setCurrentStatementName(firstName);
+        }
+      }
+
+      alert(`Recovered ${recoveredCount} saved billing statement(s) from Convex into localStorage.`);
+    } catch (err) {
+      console.error('Failed recovering savedBillingStatements from Convex:', err);
+      alert('Failed to recover saved billing statements from Convex. Check console for details.');
+    } finally {
+      setIsRecoveringSavedStatements(false);
+    }
+  };
+
   const saveCurrentStatement = (statementName) => {
     if (!statementName.trim()) {
       alert('Please enter a name for the billing statement');
@@ -499,8 +616,10 @@ export default function Billing() {
         safeLocalStorageSet("savedBillingStatements", JSON.stringify({ [statementName]: statementData }));
       }
       setSavedStatements(pruned);
+    } else {
     }
     localStorage.setItem("currentStatementName", statementName);
+    upsertOneSavedStatementToConvex(statementName, statementData, 'manual-save');
     
     console.log(`Billing statement "${statementName}" saved with ${billingStatement.length} items`);
   };
@@ -584,7 +703,9 @@ export default function Billing() {
         safeLocalStorageSet("savedBillingStatements", JSON.stringify({ [statementName]: statementData }));
       }
       setSavedStatements(pruned);
+    } else {
     }
+    upsertOneSavedStatementToConvex(statementName, statementData, 'manual-save-and-new');
     
     // Clear and start new
     clearAndStartNew();
@@ -1665,6 +1786,22 @@ export default function Billing() {
                 title="Load Saved Billing Statement"
               >
                 Load
+              </button>
+              <button
+                className="hidden px-4 py-2 bg-sky-100 text-sky-700 rounded hover:bg-sky-200 border border-sky-200 disabled:opacity-50"
+                onClick={uploadAllSavedStatementsToConvex}
+                title="Upload all saved billing statements (localStorage) to Convex"
+                disabled={isUploadingSavedStatements}
+              >
+                {isUploadingSavedStatements ? 'Uploading…' : 'Backup to Convex'}
+              </button>
+              <button
+                className="hidden px-4 py-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 border border-indigo-200 disabled:opacity-50"
+                onClick={recoverSavedStatementsFromConvex}
+                title="Recover saved billing statements from Convex into localStorage"
+                disabled={isRecoveringSavedStatements}
+              >
+                {isRecoveringSavedStatements ? 'Recovering…' : 'Recover from Convex'}
               </button>
               <button
                 className="px-4 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 border border-orange-200"

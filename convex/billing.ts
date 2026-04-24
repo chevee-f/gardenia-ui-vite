@@ -67,6 +67,102 @@ export const getUnsentEmailCount = query({
   }
 });
 
+// List all per-statement saved billing statements (for restore/recovery).
+export const listSavedBillingStatements = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("saved_billing_statements")
+      .order("desc")
+      .collect();
+  },
+});
+
+// Upload localStorage saved billing statements to Convex (for backup/sync).
+export const uploadSavedBillingStatements = mutation({
+  args: {
+    data: v.string(),
+    statementCount: v.number(),
+    currentStatementName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("saved_billing_statements_uploads", {
+      uploadedAt: Date.now(),
+      statementCount: args.statementCount,
+      currentStatementName: args.currentStatementName,
+      data: args.data,
+    });
+    return { success: true, id };
+  },
+});
+
+// Upsert a single named saved billing statement (one row per statementName).
+export const upsertSavedBillingStatement = mutation({
+  args: {
+    statementName: v.string(),
+    data: v.string(),
+    source: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("saved_billing_statements")
+      .withIndex("by_statementName", (q) => q.eq("statementName", args.statementName))
+      .unique();
+
+    const doc = {
+      statementName: args.statementName,
+      updatedAt: Date.now(),
+      data: args.data,
+      source: args.source,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, doc);
+      return { success: true, id: existing._id, updated: true };
+    }
+
+    const id = await ctx.db.insert("saved_billing_statements", doc);
+    return { success: true, id, updated: false };
+  },
+});
+
+// Upsert many named saved billing statements (Backup button behavior).
+export const upsertManySavedBillingStatements = mutation({
+  args: {
+    statements: v.array(
+      v.object({
+        statementName: v.string(),
+        data: v.string(),
+      })
+    ),
+    source: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let upserted = 0;
+    for (const s of args.statements) {
+      const existing = await ctx.db
+        .query("saved_billing_statements")
+        .withIndex("by_statementName", (q) => q.eq("statementName", s.statementName))
+        .unique();
+
+      const doc = {
+        statementName: s.statementName,
+        updatedAt: Date.now(),
+        data: s.data,
+        source: args.source,
+      };
+
+      if (existing) {
+        await ctx.db.patch(existing._id, doc);
+      } else {
+        await ctx.db.insert("saved_billing_statements", doc);
+      }
+      upserted += 1;
+    }
+
+    return { success: true, upserted };
+  },
+});
+
 // Legacy: Record print with email (for backward compatibility)
 export const recordBillingPrint = mutation({
   args: {
