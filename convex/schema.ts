@@ -12,7 +12,8 @@ export default defineSchema({
     contact_person: v.optional(v.union(v.string(), v.null())),
     contact_no: v.optional(v.union(v.string(), v.null())),
     address: v.optional(v.union(v.string(), v.null())),
-    declared_amount: v.optional(v.union(v.string(), v.null())),
+    // Some existing data stores this as a number; allow both.
+    declared_amount: v.optional(v.union(v.float64(), v.string(), v.null())),
     no_of_boxes: v.optional(v.union(v.float64(), v.null())),
     no_of_bundles: v.optional(v.union(v.float64(), v.null())),
     dispatched_by: v.optional(v.union(v.string(), v.null()))
@@ -26,7 +27,7 @@ export default defineSchema({
     contact_person: v.optional(v.union(v.string(), v.null())),
     contact_no: v.optional(v.union(v.string(), v.null())),
     address: v.optional(v.union(v.string(), v.null())),
-    declared_amount: v.optional(v.union(v.string(), v.null())),
+    declared_amount: v.optional(v.union(v.float64(), v.string(), v.null())),
     no_of_boxes: v.optional(v.union(v.float64(), v.null())),
     no_of_bundles: v.optional(v.union(v.float64(), v.null())),
     dispatched_by: v.optional(v.union(v.string(), v.null())),
