@@ -2,50 +2,59 @@
 import { defineSchema, defineTable } from "convex/server";
 import { legacyOptional, legacyScalar } from "./legacyValidators";
 
+/*
+ * Field names align with Convex dashboard “Generate schema” output.
+ * Auto-generated validators often use plain `v.null()` when the sampler only
+ * saw null — that rejects real rows once another type appears. We use
+ * legacyScalar / legacyOptional instead so string | number | boolean | null
+ * (and optional absence) stay valid.
+ */
 export default defineSchema({
-  dr: defineTable({
-    ref_no: legacyScalar,
-    group_ref_no: legacyScalar,
-    waybill_no: legacyScalar,
-    drsi_date: legacyOptional,
-    name_of_dealer: legacyOptional,
-    contact_person: legacyOptional,
-    contact_no: legacyOptional,
-    address: legacyOptional,
-    declared_amount: legacyOptional,
-    no_of_boxes: legacyOptional,
-    no_of_bundles: legacyOptional,
-    dispatched_by: legacyOptional,
+  billing_prints: defineTable({
+    emailSent: legacyOptional,
+    itemCount: legacyScalar,
+    printDate: legacyScalar,
+    printType: legacyScalar,
+    recipientEmail: legacyScalar,
+    status: legacyScalar,
+    totalDue: legacyScalar,
+    totalSales: legacyScalar,
   }),
+
   cykris_dr: defineTable({
     ref_no: legacyScalar,
     group_ref_no: legacyScalar,
     waybill_no: legacyScalar,
-    drsi_date: legacyOptional,
-    name_of_dealer: legacyOptional,
-    contact_person: legacyOptional,
-    contact_no: legacyOptional,
     address: legacyOptional,
+    contact_no: legacyOptional,
+    contact_person: legacyOptional,
     declared_amount: legacyOptional,
-    no_of_boxes: legacyOptional,
-    no_of_bundles: legacyOptional,
-    dispatched_by: legacyOptional,
-    type: legacyOptional,
     description: legacyOptional,
     destination: legacyOptional,
+    dispatched_by: legacyOptional,
+    drsi_date: legacyOptional,
+    name_of_dealer: legacyOptional,
+    no_of_boxes: legacyOptional,
+    no_of_bundles: legacyOptional,
     quantity: legacyOptional,
-    unit: legacyOptional,
     reviewed: legacyOptional,
+    type: legacyOptional,
+    unit: legacyOptional,
   }),
-  billing_prints: defineTable({
-    printDate: legacyScalar,
-    printType: legacyScalar,
-    totalSales: legacyScalar,
-    totalDue: legacyScalar,
-    itemCount: legacyScalar,
-    recipientEmail: legacyScalar,
-    status: legacyScalar,
-    emailSent: legacyOptional,
+
+  dr: defineTable({
+    ref_no: legacyScalar,
+    group_ref_no: legacyScalar,
+    waybill_no: legacyScalar,
+    address: legacyOptional,
+    contact_no: legacyOptional,
+    contact_person: legacyOptional,
+    declared_amount: legacyOptional,
+    dispatched_by: legacyOptional,
+    drsi_date: legacyOptional,
+    name_of_dealer: legacyOptional,
+    no_of_boxes: legacyOptional,
+    no_of_bundles: legacyOptional,
   }),
 
   saved_billing_statements_uploads: defineTable({
