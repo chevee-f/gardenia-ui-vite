@@ -149,7 +149,18 @@ function Cykris() {
   }, []);
 
   // Shared DRs (database) - visible to other users
-  const allCykrisDr = useQuery(api.cykris.getAllCykris) || [];
+  const allCykrisDrRaw = useQuery(api.cykris.getAllCykris);
+  const allCykrisDr = allCykrisDrRaw ?? [];
+
+  useEffect(() => {
+    if (allCykrisDrRaw === undefined) {
+      console.log("[Cykris] getAllCykris: loading (useQuery pending)");
+      return;
+    }
+    console.log("[Cykris] getAllCykris: data received", {
+      count: allCykrisDrRaw.length,
+    });
+  }, [allCykrisDrRaw]);
 
   // If the user has no local saved list, fall back to database so everyone sees shared DRs
   useEffect(() => {

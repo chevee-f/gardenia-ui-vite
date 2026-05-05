@@ -188,8 +188,15 @@ export const getCykris = query({
 // Get all Cykris DRs
 export const getAllCykris = query({
   handler: async (ctx) => {
-    const drs = await ctx.db.query("cykris_dr").order("desc").collect();
-    return drs;
+    console.log("[getAllCykris] query started");
+    try {
+      const drs = await ctx.db.query("cykris_dr").order("desc").collect();
+      console.log("[getAllCykris] success", { count: drs.length });
+      return drs;
+    } catch (err) {
+      console.error("[getAllCykris] failed", err);
+      throw err;
+    }
   },
 });
 
