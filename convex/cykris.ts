@@ -20,7 +20,7 @@ export const saveCykris = mutation({
       type: v.optional(v.union(v.string(), v.null())),
       description: v.optional(v.union(v.string(), v.null())),
       destination: v.optional(v.union(v.string(), v.null())),
-      quantity: v.optional(v.union(v.string(), v.null())),
+      quantity: v.optional(v.union(v.float64(), v.string(), v.null())),
       unit: v.optional(v.union(v.string(), v.null())),
       reviewed: v.optional(v.boolean()),
     }))
