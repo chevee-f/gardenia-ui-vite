@@ -1,28 +1,29 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { legacyOptional, legacyScalar } from "./legacyValidators";
 
 // Save or update Cykris DR rows
 export const saveCykris = mutation({
   args: {
     data: v.array(v.object({
-      ref_no: v.string(),
-      group_ref_no: v.string(),
-      waybill_no: v.string(),
-      drsi_date: v.optional(v.union(v.string(), v.null())),
-      name_of_dealer: v.optional(v.union(v.string(), v.null())),
-      contact_person: v.optional(v.union(v.string(), v.null())),
-      contact_no: v.optional(v.union(v.string(), v.null())),
-      address: v.optional(v.union(v.string(), v.null())),
-      declared_amount: v.optional(v.union(v.float64(), v.string(), v.null())),
-      no_of_boxes: v.optional(v.union(v.float64(), v.null())),
-      no_of_bundles: v.optional(v.union(v.float64(), v.null())),
-      dispatched_by: v.optional(v.union(v.string(), v.null())),
-      type: v.optional(v.union(v.string(), v.null())),
-      description: v.optional(v.union(v.string(), v.null())),
-      destination: v.optional(v.union(v.string(), v.null())),
-      quantity: v.optional(v.union(v.string(), v.null())),
-      unit: v.optional(v.union(v.string(), v.null())),
-      reviewed: v.optional(v.boolean()),
+      ref_no: legacyScalar,
+      group_ref_no: legacyScalar,
+      waybill_no: legacyScalar,
+      drsi_date: legacyOptional,
+      name_of_dealer: legacyOptional,
+      contact_person: legacyOptional,
+      contact_no: legacyOptional,
+      address: legacyOptional,
+      declared_amount: legacyOptional,
+      no_of_boxes: legacyOptional,
+      no_of_bundles: legacyOptional,
+      dispatched_by: legacyOptional,
+      type: legacyOptional,
+      description: legacyOptional,
+      destination: legacyOptional,
+      quantity: legacyOptional,
+      unit: legacyOptional,
+      reviewed: legacyOptional,
     }))
   },
   handler: async (ctx, { data }) => {
@@ -89,9 +90,10 @@ export const saveCykris = mutation({
         ];
 
         let isDifferent = false;
+        const ex = existing as Record<string, unknown>;
+        const d = doc as Record<string, unknown>;
         for (const key of keysToCompare) {
-          // Using loose equality to allow null vs undefined equivalence
-          if ((existing[key] ?? null) !== (doc[key] ?? null)) {
+          if ((ex[key] ?? null) !== (d[key] ?? null)) {
             isDifferent = true;
             break;
           }
@@ -117,9 +119,9 @@ export const saveCykris = mutation({
 export const deleteCykris = mutation({
   args: {
     data: v.array(v.object({
-      ref_no: v.string(),
-      group_ref_no: v.string(),
-      waybill_no: v.string()
+      ref_no: legacyScalar,
+      group_ref_no: legacyScalar,
+      waybill_no: legacyScalar,
     }))
   },
   handler: async (ctx, { data }) => {
@@ -147,9 +149,9 @@ export const deleteCykris = mutation({
 // Get Cykris DR by filters
 export const getCykris = query({
   args: {
-    ref_no: v.optional(v.union(v.string(), v.null())),
-    group_ref_no: v.optional(v.union(v.string(), v.null())),
-    waybill_no: v.optional(v.union(v.string(), v.null())),
+    ref_no: legacyOptional,
+    group_ref_no: legacyOptional,
+    waybill_no: legacyOptional,
   },
   handler: async (ctx, { ref_no, group_ref_no, waybill_no }) => {
     console.log("getCykris received args:", ref_no, group_ref_no, waybill_no);
@@ -158,26 +160,29 @@ export const getCykris = query({
     let results = await ctx.db.query("cykris_dr").collect();
 
     // Filter by ref_no if provided (anywhere match, case-insensitive)
-    if (ref_no && ref_no.trim() !== "") {
-      const search = ref_no.toLowerCase();
+    const refStr = ref_no != null ? String(ref_no).trim() : "";
+    if (refStr !== "") {
+      const search = refStr.toLowerCase();
       results = results.filter((dr) =>
-        dr.ref_no?.toLowerCase().includes(search)
+        String(dr.ref_no ?? "").toLowerCase().includes(search)
       );
     }
 
     // Filter by group_ref_no if provided (exact match, case-insensitive)
-    if (group_ref_no && group_ref_no.trim() !== "") {
-      const search = group_ref_no.toLowerCase();
+    const groupStr = group_ref_no != null ? String(group_ref_no).trim() : "";
+    if (groupStr !== "") {
+      const search = groupStr.toLowerCase();
       results = results.filter((dr) =>
-        dr.group_ref_no?.toLowerCase() === search
+        String(dr.group_ref_no ?? "").toLowerCase() === search
       );
     }
 
     // Filter by waybill_no if provided (exact match, case-insensitive)
-    if (waybill_no && waybill_no.trim() !== "") {
-      const search = waybill_no.toLowerCase();
+    const waybillStr = waybill_no != null ? String(waybill_no).trim() : "";
+    if (waybillStr !== "") {
+      const search = waybillStr.toLowerCase();
       results = results.filter((dr) =>
-        dr.waybill_no?.toLowerCase() === search
+        String(dr.waybill_no ?? "").toLowerCase() === search
       );
     }
 
@@ -197,9 +202,9 @@ export const getAllCykris = query({
 export const getSavedCykris = query({
   args: {
     data: v.array(v.object({
-      ref_no: v.string(),
-      group_ref_no: v.optional(v.string()),
-      waybill_no: v.optional(v.string()),
+      ref_no: legacyScalar,
+      group_ref_no: legacyOptional,
+      waybill_no: legacyOptional,
     }))
   },
   handler: async (ctx, { data }) => {

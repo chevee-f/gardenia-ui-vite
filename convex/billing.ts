@@ -1,13 +1,14 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { legacyOptional, legacyScalar } from "./legacyValidators";
 
 // Record a print event (when user prints)
 export const recordPrint = mutation({
   args: {
-    printType: v.string(),
-    totalSales: v.number(),
-    totalDue: v.number(),
-    itemCount: v.number(),
+    printType: legacyScalar,
+    totalSales: legacyScalar,
+    totalDue: legacyScalar,
+    itemCount: legacyScalar,
     recipientEmail: v.union(v.string(), v.array(v.string()))
   },
   handler: async (ctx, args) => {
@@ -67,13 +68,109 @@ export const getUnsentEmailCount = query({
   }
 });
 
+// List all per-statement saved billing statements (for restore/recovery).
+export const listSavedBillingStatements = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("saved_billing_statements")
+      .order("desc")
+      .collect();
+  },
+});
+
+// Upload localStorage saved billing statements to Convex (for backup/sync).
+export const uploadSavedBillingStatements = mutation({
+  args: {
+    data: legacyScalar,
+    statementCount: legacyScalar,
+    currentStatementName: legacyOptional,
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("saved_billing_statements_uploads", {
+      uploadedAt: Date.now(),
+      statementCount: args.statementCount,
+      currentStatementName: args.currentStatementName,
+      data: args.data,
+    });
+    return { success: true, id };
+  },
+});
+
+// Upsert a single named saved billing statement (one row per statementName).
+export const upsertSavedBillingStatement = mutation({
+  args: {
+    statementName: legacyScalar,
+    data: legacyScalar,
+    source: legacyOptional,
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("saved_billing_statements")
+      .withIndex("by_statementName", (q) => q.eq("statementName", args.statementName))
+      .unique();
+
+    const doc = {
+      statementName: args.statementName,
+      updatedAt: Date.now(),
+      data: args.data,
+      source: args.source,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, doc);
+      return { success: true, id: existing._id, updated: true };
+    }
+
+    const id = await ctx.db.insert("saved_billing_statements", doc);
+    return { success: true, id, updated: false };
+  },
+});
+
+// Upsert many named saved billing statements (Backup button behavior).
+export const upsertManySavedBillingStatements = mutation({
+  args: {
+    statements: v.array(
+      v.object({
+        statementName: legacyScalar,
+        data: legacyScalar,
+      })
+    ),
+    source: legacyOptional,
+  },
+  handler: async (ctx, args) => {
+    let upserted = 0;
+    for (const s of args.statements) {
+      const existing = await ctx.db
+        .query("saved_billing_statements")
+        .withIndex("by_statementName", (q) => q.eq("statementName", s.statementName))
+        .unique();
+
+      const doc = {
+        statementName: s.statementName,
+        updatedAt: Date.now(),
+        data: s.data,
+        source: args.source,
+      };
+
+      if (existing) {
+        await ctx.db.patch(existing._id, doc);
+      } else {
+        await ctx.db.insert("saved_billing_statements", doc);
+      }
+      upserted += 1;
+    }
+
+    return { success: true, upserted };
+  },
+});
+
 // Legacy: Record print with email (for backward compatibility)
 export const recordBillingPrint = mutation({
   args: {
-    printType: v.string(),
-    totalSales: v.number(),
-    totalDue: v.number(),
-    itemCount: v.number(),
+    printType: legacyScalar,
+    totalSales: legacyScalar,
+    totalDue: legacyScalar,
+    itemCount: legacyScalar,
     recipientEmail: v.union(v.string(), v.array(v.string()))
   },
   handler: async (ctx, args) => {
@@ -149,30 +246,44 @@ export const getDashboardStats = query({
       const firstDay = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
       return firstDay.getTime();
     };
+
+    const printTimestamp = (raw: unknown): number | null => {
+      if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+      if (typeof raw === "string") {
+        const n = Number(raw);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
     
     // Last billing statement date
-    const lastBillingDate = allPrints.length > 0 
-      ? allPrints[0].printDate 
-      : null;
+    const lastBillingDate =
+      allPrints.length > 0 ? printTimestamp(allPrints[0].printDate) : null;
     
     // Group billing statements by day
     const billingByDay: Record<string, number> = {};
     allPrints.forEach(print => {
-      const dayKey = getStartOfDay(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const dayKey = getStartOfDay(ts).toString();
       billingByDay[dayKey] = (billingByDay[dayKey] || 0) + 1;
     });
     
     // Group billing statements by week
     const billingByWeek: Record<string, number> = {};
     allPrints.forEach(print => {
-      const weekKey = getStartOfWeek(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const weekKey = getStartOfWeek(ts).toString();
       billingByWeek[weekKey] = (billingByWeek[weekKey] || 0) + 1;
     });
     
     // Group billing statements by month
     const billingByMonth: Record<string, number> = {};
     allPrints.forEach(print => {
-      const monthKey = getStartOfMonth(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const monthKey = getStartOfMonth(ts).toString();
       billingByMonth[monthKey] = (billingByMonth[monthKey] || 0) + 1;
     });
     
@@ -199,24 +310,33 @@ export const getDashboardStats = query({
     
     // Group email reports by day (where emailSent = true)
     const emailReportsByDay: Record<string, number> = {};
-    const emailReports = allPrints.filter(print => print.emailSent === true);
+    const emailReports = allPrints.filter((print) => {
+      const es = print.emailSent;
+      return es === true || es === "true" || es === 1;
+    });
     
     emailReports.forEach(print => {
-      const dayKey = getStartOfDay(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const dayKey = getStartOfDay(ts).toString();
       emailReportsByDay[dayKey] = (emailReportsByDay[dayKey] || 0) + 1;
     });
     
     // Group email reports by week
     const emailReportsByWeek: Record<string, number> = {};
     emailReports.forEach(print => {
-      const weekKey = getStartOfWeek(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const weekKey = getStartOfWeek(ts).toString();
       emailReportsByWeek[weekKey] = (emailReportsByWeek[weekKey] || 0) + 1;
     });
     
     // Group email reports by month
     const emailReportsByMonth: Record<string, number> = {};
     emailReports.forEach(print => {
-      const monthKey = getStartOfMonth(print.printDate).toString();
+      const ts = printTimestamp(print.printDate);
+      if (ts === null) return;
+      const monthKey = getStartOfMonth(ts).toString();
       emailReportsByMonth[monthKey] = (emailReportsByMonth[monthKey] || 0) + 1;
     });
     
@@ -240,4 +360,3 @@ export const getDashboardStats = query({
     };
   }
 });
-

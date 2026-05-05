@@ -17,6 +17,7 @@ import type * as billing from "../billing.js";
 import type * as cykris from "../cykris.js";
 import type * as dr from "../dr.js";
 import type * as getDr from "../getDr.js";
+import type * as legacyValidators from "../legacyValidators.js";
 import type * as sendEmail from "../sendEmail.js";
 
 /**
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   cykris: typeof cykris;
   dr: typeof dr;
   getDr: typeof getDr;
+  legacyValidators: typeof legacyValidators;
   sendEmail: typeof sendEmail;
 }>;
 export declare const api: FilterApi<
