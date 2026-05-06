@@ -116,6 +116,7 @@ function Cykris() {
   const [addDRError, setAddDRError] = useState(null);
   const [hasLocalCykrisData, setHasLocalCykrisData] = useState(false);
   const [expandedDRGroups, setExpandedDRGroups] = useState({});
+  const [recalcDbLoading, setRecalcDbLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -305,6 +306,46 @@ function Cykris() {
 
   const saveCykris = useMutation(api.cykris.saveCykris);
   const deleteCykris = useMutation(api.cykris.deleteCykris);
+  const updateDeclaredAmountsFromPricingMutation = useMutation(
+    api.cykris.updateDeclaredAmountsFromPricing
+  );
+
+  const handleUpdateDbAmountsFromPricing = async () => {
+    if (
+      !window.confirm(
+        "Update declared amounts in the database for every Cykris row using QUANTITY × current TYPE_PRICING? Rows without a matching type or quantity are skipped."
+      )
+    ) {
+      return;
+    }
+    setRecalcDbLoading(true);
+    try {
+      const result = await updateDeclaredAmountsFromPricingMutation({
+        pricing: TYPE_PRICING,
+      });
+      setJsonData((prev) =>
+        prev.map((row) => {
+          const type = row["TYPE"];
+          const qty = row["QUANTITY"];
+          const price =
+            type !== undefined && type !== null ? TYPE_PRICING[type] : undefined;
+          if (price === undefined || qty == null || String(qty).trim() === "") {
+            return row;
+          }
+          const q = parseFloat(String(qty));
+          if (Number.isNaN(q)) return row;
+          return { ...row, "DECLARED AMOUNT": (q * price).toFixed(2) };
+        })
+      );
+      alert(
+        `Database updated: ${result.updated} row(s) changed (${result.examined} examined).`
+      );
+    } catch (err) {
+      alert(err?.message ?? String(err));
+    } finally {
+      setRecalcDbLoading(false);
+    }
+  };
 
   // Confirm review
   const handleConfirmReview = async (idx) => {
@@ -955,6 +996,19 @@ function Cykris() {
             onClick={() => window.location.reload()}
           >
             <HiOutlineRefresh className="w-5 h-5" /> Refresh
+          </button>
+          <button
+            type="button"
+            title="Rewrite declared_amount in the database using QUANTITY × TYPE_PRICING for each row type"
+            className={`hidden flex items-center gap-2 px-4 py-2 rounded text-white text-sm font-medium transition shadow ${
+              recalcDbLoading
+                ? "bg-amber-400 cursor-wait"
+                : "bg-amber-600 hover:bg-amber-700"
+            }`}
+            disabled={recalcDbLoading}
+            onClick={handleUpdateDbAmountsFromPricing}
+          >
+            {recalcDbLoading ? "Updating amounts…" : "Sync amounts (pricing)"}
           </button>
         </div>
       </div>

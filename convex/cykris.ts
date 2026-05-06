@@ -144,6 +144,53 @@ export const deleteCykris = mutation({
   }
 });
 
+/** Recalculate `declared_amount` from quantity × unit price for rows whose `type` exists in `pricing`. */
+export const updateDeclaredAmountsFromPricing = mutation({
+  args: {
+    pricing: v.record(v.string(), v.number()),
+  },
+  handler: async (ctx, { pricing }) => {
+    const rows = await ctx.db.query("cykris_dr").collect();
+    let updated = 0;
+
+    for (const row of rows) {
+      const typeKey = row.type ?? "";
+      const price = pricing[typeKey];
+      if (price === undefined) continue;
+
+      const qtyRaw = row.quantity;
+      if (
+        qtyRaw === null ||
+        qtyRaw === undefined ||
+        String(qtyRaw).trim() === ""
+      ) {
+        continue;
+      }
+
+      const qty = parseFloat(String(qtyRaw));
+      if (Number.isNaN(qty)) continue;
+
+      const newAmount = (qty * price).toFixed(2);
+
+      const cur = row.declared_amount;
+      let curNorm = "";
+      if (cur !== null && cur !== undefined) {
+        curNorm =
+          typeof cur === "number"
+            ? cur.toFixed(2)
+            : String(cur).replace(/,/g, "").trim();
+      }
+
+      if (curNorm === newAmount) continue;
+
+      await ctx.db.patch(row._id, { declared_amount: newAmount });
+      updated++;
+    }
+
+    return { updated, examined: rows.length };
+  },
+});
+
 // Get Cykris DR by filters
 export const getCykris = query({
   args: {
