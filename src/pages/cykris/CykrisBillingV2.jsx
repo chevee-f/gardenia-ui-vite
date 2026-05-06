@@ -2179,7 +2179,7 @@ export default function CykrisBillingV2() {
         </Modal>
         <Modal open={sortModalOpen} onClose={() => setSortModalOpen(false)}>
           <h2 className="text-lg font-bold mb-4">Sort Destinations</h2>
-          <ul className="mb-4">
+          <ul className="mb-4 max-h-[60vh] overflow-y-auto pr-1">
             {destinationOrder.map((dest, idx) => (
               <li
                 key={dest}
@@ -2210,7 +2210,7 @@ export default function CykrisBillingV2() {
         </Modal>
         <Modal open={sortDRModalOpen} onClose={() => setSortDRModalOpen(false)}>
           <h2 className="text-lg font-bold mb-4">Sort by DR#</h2>
-          <ul className="mb-4">
+          <ul className="mb-4 max-h-[60vh] overflow-y-auto pr-1">
             {drOrder.map((drNo, idx) => (
               <li
                 key={drNo}

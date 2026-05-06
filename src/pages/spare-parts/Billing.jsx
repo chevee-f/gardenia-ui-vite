@@ -1024,16 +1024,38 @@ export default function Billing() {
   };
 
   const savePercentEdit = () => {
-    // Ensure value is a number and update charges as well
+    // Manual: percent does not auto-adjust DV or Charges
     const percent = parseFloat(editPercentPopup.value) || 0;
-    setBillingStatement(prev =>
-      prev.map(item =>
-        item.drId === editPercentPopup.drId
-          ? { ...item, percent, charges: item.dv * (percent / 100) }
-          : item
-      )
-    );
+    updateBillingItem(editPercentPopup.drId, "percent", percent);
     closePercentEdit();
+  };
+
+  const [editDvPopup, setEditDvPopup] = useState({ open: false, drId: null, value: "" });
+  const openDvEdit = (drId, currentValue) => {
+    setEditDvPopup({ open: true, drId, value: currentValue ?? "" });
+  };
+  const closeDvEdit = () => {
+    setEditDvPopup({ open: false, drId: null, value: "" });
+  };
+  const saveDvEdit = () => {
+    // Manual: DV does not auto-adjust Charges
+    const dv = parseFloat(editDvPopup.value);
+    updateBillingItem(editDvPopup.drId, "dv", Number.isFinite(dv) ? dv : 0);
+    closeDvEdit();
+  };
+
+  const [editChargesPopup, setEditChargesPopup] = useState({ open: false, drId: null, value: "" });
+  const openChargesEdit = (drId, currentValue) => {
+    setEditChargesPopup({ open: true, drId, value: currentValue ?? "" });
+  };
+  const closeChargesEdit = () => {
+    setEditChargesPopup({ open: false, drId: null, value: "" });
+  };
+  const saveChargesEdit = () => {
+    // Manual: Charges does not auto-adjust DV or Percent
+    const charges = parseFloat(editChargesPopup.value);
+    updateBillingItem(editChargesPopup.drId, "charges", Number.isFinite(charges) ? charges : 0);
+    closeChargesEdit();
   };
 
   const [editDrNoPopup, setEditDrNoPopup] = useState({ open: false, drId: null, value: "" });
@@ -1882,7 +1904,13 @@ export default function Billing() {
                         {formatDateShort(item.drDate)}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-sm">{item.dv.toLocaleString()}</td>
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openDvEdit(item.drId, item.dv)}
+                      title="Click to edit DV"
+                    >
+                      {Number(item.dv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
                     <td
                       className="px-3 py-3 text-sm cursor-pointer hover:underline"
                       onClick={() => openPercentEdit(item.drId, item.percent)}
@@ -1890,8 +1918,12 @@ export default function Billing() {
                     >
                       {Number(item.percent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
-                    <td className="px-3 py-3 text-sm font-medium">
-                      {item.charges.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <td
+                      className="px-3 py-3 text-sm font-medium cursor-pointer hover:underline"
+                      onClick={() => openChargesEdit(item.drId, item.charges)}
+                      title="Click to edit charges"
+                    >
+                      {Number(item.charges).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-3 py-3">
                       <button
@@ -1996,6 +2028,64 @@ export default function Billing() {
             >Save</button>
           </div>
         </Modal>
+
+        <Modal open={editDvPopup.open} onClose={closeDvEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit DV</h2>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={editDvPopup.value}
+            onChange={e => setEditDvPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter DV"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDvEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDvEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDvEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={editChargesPopup.open} onClose={closeChargesEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Charges</h2>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={editChargesPopup.value}
+            onChange={e => setEditChargesPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter Charges"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveChargesEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeChargesEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveChargesEdit}
+            >Save</button>
+          </div>
+        </Modal>
         <Modal open={editDestinationPopup.open} onClose={closeDestinationEdit}>
           <h2 className="text-lg font-bold mb-4">Edit Destination</h2>
           <input
@@ -2024,7 +2114,7 @@ export default function Billing() {
         </Modal>
         <Modal open={sortModalOpen} onClose={() => setSortModalOpen(false)}>
           <h2 className="text-lg font-bold mb-4">Sort Destinations</h2>
-          <ul className="mb-4">
+          <ul className="mb-4 max-h-[60vh] overflow-y-auto pr-1">
             {destinationOrder.map((dest, idx) => (
               <li
                 key={dest}
