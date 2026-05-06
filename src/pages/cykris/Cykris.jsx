@@ -23,8 +23,8 @@ const HOUSEWAY_BILL_NO = 'HOUSEWAY BILL NO:';
 
 // Pricing configuration for types
 const TYPE_PRICING = {
-  "Promo Helmets": 35,
-  "Bajaj Geniune Oil": 55,
+  "Promo Helmets": 45,
+  "Bajaj Geniune Oil": 70,
   "Parts Including Wind Shield": 205,
   "Bajaj Tires (Small)": 45,
   "Truck Tires (Big)": 205,
