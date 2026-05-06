@@ -21,8 +21,10 @@ const CONTACT_NUMBERS = '09274288126/09458261900/09156153298';
 const SHIPPER_NAME = 'TRIMOTORS TECHNOLOGY CORP.';
 const HOUSEWAY_BILL_NO = 'HOUSEWAY BILL NO:';
 
-// Pricing configuration for types
-const TYPE_PRICING = {
+const TYPE_PRICING_STORAGE_KEY = 'cykrisTypePricing';
+
+// Default pricing configuration for types (can be overridden in localStorage)
+const DEFAULT_TYPE_PRICING = {
   "Promo Helmets": 45,
   "Bajaj Geniune Oil": 70,
   "Parts Including Wind Shield": 205,
@@ -31,6 +33,28 @@ const TYPE_PRICING = {
   "Brake Pipes": 205,
   "Frame": 250,
 };
+
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === '[object Object]'
+  );
+}
+
+function normalizePricing(raw) {
+  if (!isPlainObject(raw)) return null;
+  const normalized = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(k ?? '').trim();
+    if (!key) continue;
+    const num = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
+    if (!Number.isFinite(num) || num < 0) continue;
+    normalized[key] = num;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
 
 // Description options (can be extended, but users can also type custom values)
 const DESCRIPTION_OPTIONS = [
@@ -117,6 +141,64 @@ function Cykris() {
   const [hasLocalCykrisData, setHasLocalCykrisData] = useState(false);
   const [expandedDRGroups, setExpandedDRGroups] = useState({});
   const [recalcDbLoading, setRecalcDbLoading] = useState(false);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [typePricing, setTypePricing] = useState(DEFAULT_TYPE_PRICING);
+  const [pricingDraftRows, setPricingDraftRows] = useState([]);
+
+  // Load pricing from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(TYPE_PRICING_STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved);
+      const normalized = normalizePricing(parsed);
+      if (normalized) setTypePricing({ ...DEFAULT_TYPE_PRICING, ...normalized });
+    } catch {
+      // ignore invalid JSON
+    }
+  }, []);
+
+  const openPricingModal = () => {
+    const rows = Object.entries(typePricing)
+      .map(([type, price]) => ({ id: `${type}-${Math.random().toString(16).slice(2)}`, type, price: String(price) }))
+      .sort((a, b) => a.type.localeCompare(b.type));
+    setPricingDraftRows(rows);
+    setPricingModalOpen(true);
+  };
+
+  const closePricingModal = () => {
+    setPricingModalOpen(false);
+  };
+
+  const savePricingDraft = () => {
+    const normalized = normalizePricing(
+      pricingDraftRows.reduce((acc, row) => {
+        acc[row.type] = row.price;
+        return acc;
+      }, {})
+    );
+
+    if (!normalized) {
+      alert('Please add at least one valid Type + Price.');
+      return;
+    }
+
+    const merged = { ...DEFAULT_TYPE_PRICING, ...normalized };
+    setTypePricing(merged);
+    localStorage.setItem(TYPE_PRICING_STORAGE_KEY, JSON.stringify(merged));
+    setPricingModalOpen(false);
+  };
+
+  const resetPricingToDefault = () => {
+    if (!window.confirm('Reset pricing to defaults?')) return;
+    setTypePricing(DEFAULT_TYPE_PRICING);
+    localStorage.removeItem(TYPE_PRICING_STORAGE_KEY);
+    setPricingDraftRows(
+      Object.entries(DEFAULT_TYPE_PRICING)
+        .map(([type, price]) => ({ id: `${type}-${Math.random().toString(16).slice(2)}`, type, price: String(price) }))
+        .sort((a, b) => a.type.localeCompare(b.type))
+    );
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -313,7 +395,7 @@ function Cykris() {
   const handleUpdateDbAmountsFromPricing = async () => {
     if (
       !window.confirm(
-        "Update declared amounts in the database for every Cykris row using QUANTITY × current TYPE_PRICING? Rows without a matching type or quantity are skipped."
+        "Update declared amounts in the database for every Cykris row using QUANTITY × current pricing? Rows without a matching type or quantity are skipped."
       )
     ) {
       return;
@@ -321,14 +403,14 @@ function Cykris() {
     setRecalcDbLoading(true);
     try {
       const result = await updateDeclaredAmountsFromPricingMutation({
-        pricing: TYPE_PRICING,
+        pricing: typePricing,
       });
       setJsonData((prev) =>
         prev.map((row) => {
           const type = row["TYPE"];
           const qty = row["QUANTITY"];
           const price =
-            type !== undefined && type !== null ? TYPE_PRICING[type] : undefined;
+            type !== undefined && type !== null ? typePricing[type] : undefined;
           if (price === undefined || qty == null || String(qty).trim() === "") {
             return row;
           }
@@ -746,7 +828,7 @@ function Cykris() {
       // Calculate amount based on type and quantity
       let calculatedAmount = '';
       if (row.type && row.quantity) {
-        const price = TYPE_PRICING[row.type];
+        const price = typePricing[row.type];
         if (price) {
           const qty = parseFloat(row.quantity);
           calculatedAmount = (qty * price).toFixed(2);
@@ -779,7 +861,7 @@ function Cykris() {
     const dbDataArray = formData.rows.map((row) => {
       let calculatedAmount = '';
       if (row.type && row.quantity) {
-        const price = TYPE_PRICING[row.type];
+        const price = typePricing[row.type];
         if (price) {
           const qty = parseFloat(row.quantity);
           calculatedAmount = (qty * price).toFixed(2);
@@ -992,6 +1074,13 @@ function Cykris() {
             Add DR
           </button>
           <button
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded shadow hover:bg-gray-50 text-sm font-medium transition"
+            onClick={openPricingModal}
+          >
+            Pricing
+          </button>
+          <button
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 text-sm font-medium transition shadow"
             onClick={() => window.location.reload()}
           >
@@ -999,7 +1088,7 @@ function Cykris() {
           </button>
           <button
             type="button"
-            title="Rewrite declared_amount in the database using QUANTITY × TYPE_PRICING for each row type"
+            title="Rewrite declared_amount in the database using QUANTITY × current pricing for each row type"
             className={`hidden flex items-center gap-2 px-4 py-2 rounded text-white text-sm font-medium transition shadow ${
               recalcDbLoading
                 ? "bg-amber-400 cursor-wait"
@@ -1012,6 +1101,135 @@ function Cykris() {
           </button>
         </div>
       </div>
+
+      {/* Pricing Settings Modal */}
+      {pricingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+              <div className="flex flex-col">
+                <h2 className="text-lg font-semibold text-gray-900">Type Pricing</h2>
+                <p className="text-xs text-gray-500">Saved in this browser (localStorage). New DR amounts will use these rates.</p>
+              </div>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold leading-none"
+                onClick={closePricingModal}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-5 max-h-[70vh] overflow-y-auto">
+              <div className="overflow-x-auto border border-gray-200 rounded">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold">Type</th>
+                      <th className="px-3 py-2 text-left font-semibold w-40">Price</th>
+                      <th className="px-3 py-2 text-left font-semibold w-24">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {pricingDraftRows.map((row, idx) => (
+                      <tr key={row.id} className="bg-white">
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={row.type}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPricingDraftRows((prev) =>
+                                prev.map((r) => (r.id === row.id ? { ...r, type: v } : r))
+                              );
+                            }}
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="e.g. Promo Helmets"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={row.price}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPricingDraftRows((prev) =>
+                                prev.map((r) => (r.id === row.id ? { ...r, price: v } : r))
+                              );
+                            }}
+                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                            onClick={() => setPricingDraftRows((prev) => prev.filter((r) => r.id !== row.id))}
+                            disabled={pricingDraftRows.length <= 1}
+                            title={pricingDraftRows.length <= 1 ? "Keep at least one row" : "Remove"}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {pricingDraftRows.length === 0 && (
+                      <tr>
+                        <td className="px-3 py-6 text-center text-gray-500" colSpan={3}>
+                          No rows. Click “Add row”.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200 text-sm font-medium"
+                  onClick={() =>
+                    setPricingDraftRows((prev) => [
+                      ...prev,
+                      { id: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`, type: '', price: '' },
+                    ])
+                  }
+                >
+                  + Add row
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 border border-gray-200 text-sm font-medium"
+                  onClick={resetPricingToDefault}
+                >
+                  Reset to defaults
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 px-5 py-3 border-t bg-gray-50">
+              <button
+                type="button"
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm font-medium"
+                onClick={closePricingModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
+                onClick={savePricingDraft}
+              >
+                Save pricing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto mt-6 px-6">
 
@@ -1172,7 +1390,7 @@ function Cykris() {
                                           const type = row["TYPE"];
                                           const quantity = row["QUANTITY"];
                                           if (type && quantity) {
-                                            const price = TYPE_PRICING[type];
+                                            const price = typePricing[type];
                                             if (price) {
                                               const qty = parseFloat(quantity);
                                               return (qty * price).toFixed(2);
@@ -1234,7 +1452,7 @@ function Cykris() {
                                       const type = firstRow["TYPE"];
                                       const quantity = firstRow["QUANTITY"];
                                       if (type && quantity) {
-                                        const price = TYPE_PRICING[type];
+                                        const price = typePricing[type];
                                         if (price) {
                                           const qty = parseFloat(quantity);
                                           return (qty * price).toFixed(2);
@@ -1432,7 +1650,7 @@ function Cykris() {
                           className={`w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isAddDRloading ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                         >
                           <option value="">Select Type</option>
-                          {Object.keys(TYPE_PRICING).map((type) => (
+                          {Object.keys(typePricing).map((type) => (
                             <option key={type} value={type}>{type}</option>
                           ))}
                         </select>

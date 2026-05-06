@@ -392,14 +392,27 @@ export default function CykrisBillingV2() {
     // No need to modify drList order - removed to prevent lag
   };
 
-  // Update date fields in billing statement
+  // Update fields in billing statement
   const updateBillingItem = (drId, field, value) => {
     setBillingStatement(prev =>
-      prev.map(item =>
-        item.drId === drId
-          ? { ...item, [field]: value }
-          : item
-      )
+      prev.map(item => {
+        if (item.drId !== drId) return item;
+
+        // Keep derived fields consistent
+        if (field === "percent") {
+          const percent = Number.parseFloat(value) || 0;
+          const dv = Number.parseFloat(item.dv) || 0;
+          return { ...item, percent, charges: dv * (percent / 100) };
+        }
+
+        if (field === "dv") {
+          const dv = Number.parseFloat(value) || 0;
+          const percent = Number.parseFloat(item.percent) || 0;
+          return { ...item, dv, charges: dv * (percent / 100) };
+        }
+
+        return { ...item, [field]: value };
+      })
     );
   };
 
@@ -1079,6 +1092,42 @@ export default function CykrisBillingV2() {
   const saveDrNoEdit = () => {
     updateBillingItem(editDrNoPopup.drId, "drNo", editDrNoPopup.value);
     closeDrNoEdit();
+  };
+
+  const [editDescriptionPopup, setEditDescriptionPopup] = useState({ open: false, drId: null, value: "" });
+  const openDescriptionEdit = (drId, currentValue) => {
+    setEditDescriptionPopup({ open: true, drId, value: currentValue ?? "" });
+  };
+  const closeDescriptionEdit = () => {
+    setEditDescriptionPopup({ open: false, drId: null, value: "" });
+  };
+  const saveDescriptionEdit = () => {
+    updateBillingItem(editDescriptionPopup.drId, "description", editDescriptionPopup.value);
+    closeDescriptionEdit();
+  };
+
+  const [editQuantityPopup, setEditQuantityPopup] = useState({ open: false, drId: null, value: "" });
+  const openQuantityEdit = (drId, currentValue) => {
+    setEditQuantityPopup({ open: true, drId, value: currentValue ?? "" });
+  };
+  const closeQuantityEdit = () => {
+    setEditQuantityPopup({ open: false, drId: null, value: "" });
+  };
+  const saveQuantityEdit = () => {
+    updateBillingItem(editQuantityPopup.drId, "quantity", editQuantityPopup.value);
+    closeQuantityEdit();
+  };
+
+  const [editDvPopup, setEditDvPopup] = useState({ open: false, drId: null, value: "" });
+  const openDvEdit = (drId, currentValue) => {
+    setEditDvPopup({ open: true, drId, value: currentValue ?? "" });
+  };
+  const closeDvEdit = () => {
+    setEditDvPopup({ open: false, drId: null, value: "" });
+  };
+  const saveDvEdit = () => {
+    updateBillingItem(editDvPopup.drId, "dv", editDvPopup.value);
+    closeDvEdit();
   };
 
   // Manual Add DR functions
@@ -1883,20 +1932,38 @@ export default function CykrisBillingV2() {
                     key={item.drId}
                     className={`${getRowColor(item)} ${idx % 2 === 0 ? '' : 'bg-opacity-75'}`}
                   >
-                    <td className="px-3 py-3 text-sm">
-                      {item.drNo || '-'}
+                    <td
+                      className="px-3 py-3 text-sm font-medium cursor-pointer hover:underline"
+                      onClick={() => openDrNoEdit(item.drId, item.drNo)}
+                      title="Click to edit DR No"
+                    >
+                      {item.drNo || <span className="text-gray-400 italic">Set DR No</span>}
                     </td>
-                    <td className="px-3 py-3 text-sm">
-                      {item.description || '-'}
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openDescriptionEdit(item.drId, item.description)}
+                      title="Click to edit description"
+                    >
+                      {item.description || <span className="text-gray-400 italic">Set Description</span>}
                     </td>
-                    <td className="px-3 py-3 text-sm">
-                      {item.quantity || '-'}
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openQuantityEdit(item.drId, item.quantity)}
+                      title="Click to edit quantity"
+                    >
+                      {item.quantity || <span className="text-gray-400 italic">Set Quantity</span>}
                     </td>
                     <td className="px-3 py-3 text-sm">
                       {item.unit || '-'}
                     </td>
-                    <td className="px-3 py-3 text-sm">
-                      {item.dv ? parseFloat(item.dv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                    <td
+                      className="px-3 py-3 text-sm cursor-pointer hover:underline"
+                      onClick={() => openDvEdit(item.drId, item.dv)}
+                      title="Click to edit declared amount"
+                    >
+                      {item.dv
+                        ? parseFloat(item.dv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : <span className="text-gray-400 italic">Set Amount</span>}
                     </td>
                     <td className="px-3 py-3">
                       <button
@@ -1968,6 +2035,89 @@ export default function CykrisBillingV2() {
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               onClick={saveDrNoEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={editDescriptionPopup.open} onClose={closeDescriptionEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Description</h2>
+          <input
+            type="text"
+            value={editDescriptionPopup.value}
+            onChange={e => setEditDescriptionPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter description"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDescriptionEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDescriptionEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDescriptionEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={editQuantityPopup.open} onClose={closeQuantityEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Quantity</h2>
+          <input
+            type="text"
+            value={editQuantityPopup.value}
+            onChange={e => setEditQuantityPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter quantity"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveQuantityEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeQuantityEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveQuantityEdit}
+            >Save</button>
+          </div>
+        </Modal>
+
+        <Modal open={editDvPopup.open} onClose={closeDvEdit}>
+          <h2 className="text-lg font-bold mb-4">Edit Declared Amount</h2>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={editDvPopup.value}
+            onChange={e => setEditDvPopup(p => ({ ...p, value: e.target.value }))}
+            placeholder="Enter declared amount"
+            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                saveDvEdit();
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              onClick={closeDvEdit}
+            >Cancel</button>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={saveDvEdit}
             >Save</button>
           </div>
         </Modal>
