@@ -400,6 +400,12 @@ export default function Billing() {
     return [0, ''];
   };
 
+  const calculateCharges = (dv, percent) => {
+    const dvNum = typeof dv === 'number' ? dv : parseFloat(dv) || 0;
+    const percentNum = typeof percent === 'number' ? percent : parseFloat(percent) || 0;
+    return dvNum * (percentNum / 100);
+  };
+
   // Add DR to billing statement
   const addToBillingStatement = (dr) => {
     if (isDRAdded(dr._id)) return;
@@ -415,7 +421,7 @@ export default function Billing() {
       drDate: '',
       dv,
       percent,
-      charges: dv * (percent / 100)
+      charges: calculateCharges(dv, percent)
     };
 
     setBillingStatement(prev => [...prev, newItem]);
@@ -426,11 +432,14 @@ export default function Billing() {
   // Update date fields in billing statement
   const updateBillingItem = (drId, field, value) => {
     setBillingStatement(prev =>
-      prev.map(item =>
-        item.drId === drId
-          ? { ...item, [field]: value }
-          : item
-      )
+      prev.map(item => {
+        if (item.drId !== drId) return item;
+        const updated = { ...item, [field]: value };
+        if (field === 'dv' || field === 'percent') {
+          updated.charges = calculateCharges(updated.dv, updated.percent);
+        }
+        return updated;
+      })
     );
   };
 
@@ -1024,7 +1033,6 @@ export default function Billing() {
   };
 
   const savePercentEdit = () => {
-    // Manual: percent does not auto-adjust DV or Charges
     const percent = parseFloat(editPercentPopup.value) || 0;
     updateBillingItem(editPercentPopup.drId, "percent", percent);
     closePercentEdit();
@@ -1038,24 +1046,9 @@ export default function Billing() {
     setEditDvPopup({ open: false, drId: null, value: "" });
   };
   const saveDvEdit = () => {
-    // Manual: DV does not auto-adjust Charges
     const dv = parseFloat(editDvPopup.value);
     updateBillingItem(editDvPopup.drId, "dv", Number.isFinite(dv) ? dv : 0);
     closeDvEdit();
-  };
-
-  const [editChargesPopup, setEditChargesPopup] = useState({ open: false, drId: null, value: "" });
-  const openChargesEdit = (drId, currentValue) => {
-    setEditChargesPopup({ open: true, drId, value: currentValue ?? "" });
-  };
-  const closeChargesEdit = () => {
-    setEditChargesPopup({ open: false, drId: null, value: "" });
-  };
-  const saveChargesEdit = () => {
-    // Manual: Charges does not auto-adjust DV or Percent
-    const charges = parseFloat(editChargesPopup.value);
-    updateBillingItem(editChargesPopup.drId, "charges", Number.isFinite(charges) ? charges : 0);
-    closeChargesEdit();
   };
 
   const [editDrNoPopup, setEditDrNoPopup] = useState({ open: false, drId: null, value: "" });
@@ -1424,7 +1417,6 @@ export default function Billing() {
         // Extract data from the row
         const wbDate = row.getCell(2).value;
         const percent = row.getCell(7).value;
-        const charges = row.getCell(8).value;
 
         // Convert date values if they're Excel date numbers
         const formatExcelDate = (excelDate) => {
@@ -1445,6 +1437,8 @@ export default function Billing() {
           return parseFloat(value) || 0;
         };
 
+        const parsedDv = parseNumeric(dv);
+        const parsedPercent = parseNumeric(percent);
         importedData.push({
           drId: `imported_${Date.now()}_${rowNumber}`, // Generate unique ID for imported items
           waybillNo: waybillNo.toString(),
@@ -1452,9 +1446,9 @@ export default function Billing() {
           destination: destination ? destination.toString() : '',
           drNo: drNo ? drNo.toString() : '',
           drDate: formatExcelDate(drDate),
-          dv: parseNumeric(dv),
-          percent: parseNumeric(percent),
-          charges: parseNumeric(charges)
+          dv: parsedDv,
+          percent: parsedPercent,
+          charges: calculateCharges(parsedDv, parsedPercent)
         });
 
         rowNumber++;
@@ -1918,11 +1912,7 @@ export default function Billing() {
                     >
                       {Number(item.percent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
-                    <td
-                      className="px-3 py-3 text-sm font-medium cursor-pointer hover:underline"
-                      onClick={() => openChargesEdit(item.drId, item.charges)}
-                      title="Click to edit charges"
-                    >
+                    <td className="px-3 py-3 text-sm font-medium">
                       {Number(item.charges).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-3 py-3">
@@ -2058,34 +2048,6 @@ export default function Billing() {
           </div>
         </Modal>
 
-        <Modal open={editChargesPopup.open} onClose={closeChargesEdit}>
-          <h2 className="text-lg font-bold mb-4">Edit Charges</h2>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={editChargesPopup.value}
-            onChange={e => setEditChargesPopup(p => ({ ...p, value: e.target.value }))}
-            placeholder="Enter Charges"
-            className="w-full px-3 py-2 border border-gray-300 rounded mb-4"
-            autoFocus
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                saveChargesEdit();
-              }
-            }}
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              onClick={closeChargesEdit}
-            >Cancel</button>
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={saveChargesEdit}
-            >Save</button>
-          </div>
-        </Modal>
         <Modal open={editDestinationPopup.open} onClose={closeDestinationEdit}>
           <h2 className="text-lg font-bold mb-4">Edit Destination</h2>
           <input
